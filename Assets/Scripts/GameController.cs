@@ -1,0 +1,521 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+
+public class GameController : MonoBehaviour{
+
+	// [WP,WKn,WB,WR,WQ,WK, bp,bkn,bb,br,bq,bk]
+	public List<GameObject> piecePrefabs;
+	private int[,] boardData = new int[8, 8];
+	private int gameTurn = 0;
+	public Camera camera;
+	public GameObject selection;
+	public GameObject chosen;
+	public GameObject gameOverButton;
+	public PieceVals pieceVals;
+
+	// human (0) or comp (1) for white 1st and black 2nd
+	public int[] players;
+
+	private int selectionX;
+	private int selectionY;
+	private int[] startTile = new int[] {-1,-1};
+	private int[] endTile = new int[] {-1,-1};
+	private int startPieceIndex;
+	private int endPieceIndex;
+	private int passantTurn = 0;
+	private int[] passantTile = new int[] { 0, 0 };
+	private bool computerMove = false;
+	private bool goToComputer = false;
+
+	// experimental to try to make better opening
+	private int numberOfMoves = 0;
+
+
+
+
+
+	// castling represented by moving king across two
+	private bool castleWhiteLeft = true, castleWhiteRight = true, castleBlackLeft = true, castleBlackRight = true;
+
+
+	public void GameOver(){
+		SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+	}
+
+	void Update(){
+		if (goToComputer) {
+			goToComputer = false;
+			CompTurn ();
+		}
+		if (Input.GetMouseButtonUp(0)) {
+			MouseUp ();
+		}
+		UpdateSelection ();
+		if (computerMove) {
+			goToComputer = true;
+		}
+	}
+
+	private void MouseUp(){
+
+		// player's turn
+		if (selectionX != -1 && players [gameTurn] == 0) {
+			
+			int pieceIndex = boardData [selectionX, selectionY]; 
+
+			// own piece selected
+			if (pieceIndex > -1 + 6 * gameTurn && pieceIndex < 6 + 6 * gameTurn) {
+				chosen.transform.position = new Vector3 (selectionX, 0.01f, selectionY);
+				chosen.SetActive (true);
+				startTile = new int[] { selectionX, selectionY };
+				startPieceIndex = pieceIndex;
+			} else if (startTile[0] != -1){
+				endPieceIndex = pieceIndex;
+				endTile = new int[] { selectionX, selectionY };
+				if (ValidMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex, gameTurn)) {
+					int[,] boardClone = (int[,])boardData.Clone ();
+					boardClone = MakeMove (boardClone, startTile, endTile, startPieceIndex, endPieceIndex);
+					int[] kingPos = FindKing (boardClone, gameTurn);
+					if (!InCheck (boardClone, gameTurn, kingPos)) {
+//						boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
+						CastleBools (startTile, endTile);
+						gameTurn = 1 - gameTurn;
+						passantTurn -= 1;
+						chosen.SetActive (false);
+						// drawing castling
+						if ((startPieceIndex == 5 || startPieceIndex == 11) && (startTile [0] - endTile [0]) * (startTile [0] - endTile [0]) == 4) {
+							if (endTile [0] - startTile [0] == -2) {
+								VisualUpdate (new int[] { 0, startTile [1] }, new int[] { 3, startTile [1] });
+							} else {
+								VisualUpdate (new int[] { 7, startTile [1] }, new int[] { 5, startTile [1] });
+							}
+							// drawing en passant
+						} else if ((startPieceIndex == 0 || startPieceIndex == 6) && startTile [0] != endTile [0] && endPieceIndex == -1) {
+							VisualUpdate (new int[] { -1, -1 }, new int[] { endTile [0], startTile [1] });
+						}
+						VisualUpdate (startTile, endTile);
+						// moved boarddata
+						boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
+						startTile = new int[] { -1, -1 };
+
+						numberOfMoves += 1;
+
+						if (InCheckmate (boardData, gameTurn)) {
+							gameOverButton.SetActive (true);
+					
+						} else if (players [gameTurn] == 1) {
+							computerMove = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private void CompTurn(){
+		int[] moveData;
+		computerMove = false;
+		if (numberOfMoves < 2) {
+			moveData = new int[] { 4, 1 + 5 * gameTurn, 4, 3 + gameTurn, 0 };
+			int[,] boardClone = (int[,])boardData.Clone ();
+			boardClone = MakeMove (boardClone, new int[] {4, 1 + 5 * gameTurn}, new int[] {4, 3+gameTurn}, 6*gameTurn, -1);
+			for (int xStart = 0; xStart < 8; xStart++) {
+				for (int yStart = 0; yStart < 8; yStart++) {
+					int startPieceIndex = boardClone [xStart, yStart];
+					if (startPieceIndex > -1 + 6 * (1-gameTurn) && startPieceIndex < 6 + 6 * (1-gameTurn)) {
+						if (ValidMove(boardClone, new int[] {xStart,yStart}, new int[] {4, 3+gameTurn},startPieceIndex, 6*gameTurn, (1-gameTurn))){
+							moveData = new int[] { 3, 1 + 5 * gameTurn, 3, 3 + gameTurn, 0 };
+							break;
+						}
+					}
+				}
+			}
+		
+		} else {
+			moveData = CompSearch (boardData, gameTurn, 4, 1, 0);
+		}
+
+//		moveData = CompSearch (boardData, gameTurn, 4, 1, 0);
+
+
+		startTile = new int[] { moveData [0], moveData [1] };
+		endTile = new int[] { moveData [2], moveData [3] };
+		startPieceIndex = boardData [startTile [0], startTile [1]];
+		endPieceIndex = boardData [endTile [0], endTile [1]];
+		CastleBools (startTile, endTile);
+		gameTurn = 1 - gameTurn;
+		passantTurn -= 1;
+		numberOfMoves += 1;
+
+		if ((startPieceIndex == 5 || startPieceIndex == 11) && (startTile [0] - endTile [0]) * (startTile [0] - endTile [0]) == 4) {
+			if (endTile [0] - startTile [0] == -2) {
+				VisualUpdate (new int[] { 0, startTile [1] }, new int[] { 3, startTile [1] });
+			} else {
+				VisualUpdate (new int[] { 7, startTile [1] }, new int[] { 5, startTile [1] });
+			}
+			// drawing en passant
+		} else if ((startPieceIndex == 0 || startPieceIndex == 6) && startTile [0] != endTile [0] && endPieceIndex == -1) {
+			VisualUpdate (new int[] { -1, -1 }, new int[] { endTile [0], startTile [1] });
+		}
+		VisualUpdate (startTile, endTile);
+		// moved boarddata
+		boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
+		if (InCheckmate (boardData, gameTurn)) {
+			gameOverButton.SetActive (true);
+		}else if (players [gameTurn] == 1) {
+			computerMove = true;
+		}
+	}
+
+	private int[] CompSearch(int[,] board, int turn, int maxDepth, int currentDepth, int value){
+		if (currentDepth == 1) {
+			value = pieceVals.FullEvaluate (board);
+		}
+		// bestmove format xstart, ystart, xend, yend, value
+		List<int[]> bestMove = new List<int[]> {new int[] {-1,-1,-1,-1,-100000+200000*turn}};
+		for (int xStart = 0; xStart < 8; xStart++) {
+			for (int yStart = 0; yStart < 8; yStart++) {
+				int startPieceIndex = board [xStart, yStart];
+				if (startPieceIndex > -1 + 6 * turn && startPieceIndex < 6 + 6 * turn) {
+					for (int xEnd = 0; xEnd < 8; xEnd++) {
+						for (int yEnd = 0; yEnd < 8; yEnd++) {
+							int endPieceIndex = board [xEnd, yEnd];
+							if (endPieceIndex < 6 * turn || endPieceIndex > 5 + 6 * turn) {
+								if (ValidMove (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex, turn)) {
+									int[,] boardClone = (int[,])board.Clone ();
+									boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex);
+									int[] kingPos = FindKing (boardClone, turn);
+									if (!InCheck (boardClone, turn, kingPos)) {
+										int testValue = value + pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd });
+
+										bool cont = true;
+										if ((turn == 0 && testValue < bestMove [0][4]) || (turn == 1 && testValue > bestMove [0][4])) {
+											cont = false;
+										}
+										if (currentDepth == maxDepth) {
+											kingPos = FindKing (boardClone, 1 - turn);
+											if (InCheck (boardClone, 1 - turn, kingPos)) {
+												testValue += 5 - 10 * turn;
+												if (InCheckmate (boardClone, 1 - turn)) {
+													testValue += 2000 - 4000 * turn;
+												}
+											}
+											// adjust score if check found here
+										}
+
+										if (currentDepth != maxDepth && cont) {
+											testValue = CompSearch (boardClone,1-turn,maxDepth, currentDepth+1,testValue)[4];
+										}
+
+										if (turn == 1) {
+											if (testValue < bestMove [0] [4]) {
+												bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
+											} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
+												bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
+											}
+										} else if (testValue > bestMove [0] [4]) {
+											bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
+										} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
+											bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
+										}
+									
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return bestMove[Random.Range (0, bestMove.Count)];
+	}
+
+
+
+
+	private void CastleBools(int[] fromTile, int[] toTile){
+		for (int i = 0; i < 2; i++){
+			int[] checkTile = new int[][] { fromTile, toTile } [i];
+
+			if (checkTile[0] == 0 && checkTile[1] == 0) {
+				castleWhiteLeft = false;
+			} else if (checkTile[0] == 7 && checkTile[1] == 0 ) {
+				castleWhiteRight = false;
+			} else if (checkTile[0] == 0 && checkTile[1] == 7) {
+				castleBlackLeft = false;
+			} else if (checkTile[0] == 7 && checkTile[1] == 7) {
+				castleBlackRight = false;
+			} else if (checkTile[0] == 4 && checkTile[1] == 0) {
+				castleWhiteRight = false;
+				castleWhiteLeft = false;
+			} else if (checkTile[0] == 4 && checkTile[1] == 7) {
+				castleBlackLeft = false;
+				castleBlackRight = false;
+			}
+		}
+	}
+
+	private int[] FindKing(int[,] board, int turnToTest){
+		for (int x = 0; x < 8; x++) {
+			for (int y = 0; y < 8; y++) {
+				if (board [x, y] == 5 + 6 * turnToTest) {
+					return new int[] {x, y};
+				}
+			}
+		}
+		return new int[] { -1, -1 };
+	}
+
+	private bool InCheck(int[,] board, int turnToTest, int[] kingPos){
+		for (int x = 0; x < 8; x++) {
+			for (int y = 0; y < 8; y++) {
+				if (board[x,y] > 5-6*turnToTest && board[x,y] < 12-6*turnToTest){
+					if (ValidMove(board, new int[] {x,y}, kingPos, board[x,y], 5+6*turnToTest, 1-turnToTest)){
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private bool InCheckmate(int[,] board, int turnToTest){
+		for (int x = 0; x < 8; x++) {
+			for (int y = 0; y < 8; y++) {
+				if (board [x, y] > -1 + 6 * turnToTest && board [x, y] < 6 + 6 * turnToTest) {
+					for (int w = 0; w < 8; w++) {
+						for (int z = 0; z < 8; z++) {
+							if (board [w, z] < 0 + 6 * turnToTest || board [w, z] > 5 + 6 * turnToTest) {
+								if (ValidMove(board, new int[] {x,y}, new int[] {w,z}, board[x,y] ,board[w,z] , turnToTest)){
+									int[,] boardClone = (int[,])board.Clone ();
+									boardClone = MakeMove (boardClone, new int[] {x,y}, new int[] {w,z},  board[x,y] ,board[w,z]);
+									int[] kingPos = FindKing (boardClone, turnToTest);
+									if (!InCheck (boardClone, turnToTest, kingPos)) {
+										return false;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	private int[,] MakeMove(int[,] board, int[] fromTile, int[] toTile, int fromPieceIndex, int toPieceIndex){
+
+		// casting
+		if ((fromPieceIndex == 5 || fromPieceIndex == 11) && (fromTile [0] - toTile [0]) * (fromTile [0] - toTile [0]) == 4) {
+			board [toTile [0], toTile [1]] = fromPieceIndex;
+			board [fromTile [0], fromTile [1]] = -1;
+			if (toTile [0] - fromTile [0] == -2) {
+				board [3, toTile [1]] = board [0, toTile [1]];
+				board [0, fromTile [1]] = -1;
+			} else { 
+				board [5, toTile [1]] = board [7, toTile [1]];
+				board [7, fromTile [1]] = -1;
+			}
+			return board;
+		}
+		// en passant
+		if ((fromPieceIndex == 0 || fromPieceIndex == 6) && fromTile[0] != toTile[0] && toPieceIndex == -1){
+			board [toTile [0], fromTile [1]] = -1;
+		}
+		board [toTile [0], toTile [1]] = fromPieceIndex;
+		board [fromTile [0], fromTile [1]] = -1;
+
+		// promotions
+		if ((fromPieceIndex == 0 || fromPieceIndex == 6) && (toTile [1] == 7 || toTile [1] == 0)) {
+			board [toTile [0], toTile [1]] = fromPieceIndex + 4;
+		}
+		return board;
+	}
+
+	private void VisualUpdate(int[] fromTile, int[] toTile){
+		object[] obj = GameObject.FindObjectsOfType(typeof (GameObject));
+		if (boardData [toTile [0], toTile [1]] != -1) {
+			foreach (GameObject o in obj) {
+				if (o.transform.position.x == toTile [0] && o.transform.position.z == toTile [1] && o.CompareTag("Piece")) {
+					Destroy (o);
+					break;
+				}
+			}
+		}
+		foreach (GameObject o in obj) {
+			if (o.transform.position.x == fromTile [0] && o.transform.position.z == fromTile [1] && o.CompareTag("Piece")) {
+				if (boardData [fromTile [0], fromTile [1]] % 6 == 0 && toTile [1] % 7 == 0) {
+					Destroy (o);
+					GeneratePiece (toTile [0], toTile [1], boardData [fromTile [0], fromTile [1]] + 4);
+					return;
+				}
+				o.transform.position = new Vector3 (toTile [0], 0.0f, toTile [1]);
+				return;
+			}
+		}
+	}
+
+
+	private void UpdateSelection(){
+		if (!Camera.main) {
+			return;
+		}
+		if (computerMove) {
+			selection.SetActive (false);
+			return;
+		}
+		RaycastHit hit;
+		if (Physics.Raycast (Camera.main.ScreenPointToRay (Input.mousePosition), out hit, 50.0f, LayerMask.GetMask ("ChessPlane"))) {
+			selectionX = (int)(hit.point.x + 0.5);
+			selectionY = (int)(hit.point.z + 0.5);
+			selection.SetActive (true);
+		} else {
+			selection.SetActive (false);
+			selectionX = -1;
+			selectionY = -1;
+		}
+		selection.transform.position = new Vector3 (selectionX, 0.01f, selectionY);
+	}
+
+	void Start (){
+		players = new int[] { 0, 0 };
+		string white = PlayerPrefs.GetString("White");
+		if (white != "Player") {
+			players [0] = 1;
+			computerMove = true;
+		}
+		string black = PlayerPrefs.GetString("Black");
+		if (black != "Player") {
+			players [1] = 1;
+		}
+		// sets starting board data to all -1 to represent empty
+		for (int i = 0; i < 8; i++) {
+			for (int j = 0; j < 8; j++) {
+				boardData [i, j] = -1;
+			}
+		}
+	
+		// Generate starting board
+		// Pawns
+		for (int i = 0; i<8; i++){
+			GeneratePiece(i,1,0);
+			GeneratePiece(i,6,6);
+			}
+		// Rooks
+		for (int i = 0; i < 2; i++) {
+			GeneratePiece (0, 7 * i,  3 + 6 * i);
+			GeneratePiece (7, 7 * i,  3 + 6 * i);
+		}
+		// Knights
+		for (int i = 0; i < 2; i++) {
+			GeneratePiece (1, 7 * i,  1 + 6 * i);
+			GeneratePiece (6, 7 * i,  1 + 6 * i);
+		}
+		// Bishops
+		for (int i = 0; i < 2; i++) {
+			GeneratePiece (2, 7 * i,  2 + 6 * i);
+			GeneratePiece (5, 7 * i,  2 + 6 * i);
+		}
+		// Royalty
+		for (int i = 0; i < 2; i++) {
+			GeneratePiece (3, 7 * i, 4 + 6 * i);
+			GeneratePiece (4, 7 * i, 5 + 6 * i);
+		}
+
+	}
+		
+	private void GeneratePiece(int x, int y, int pieceIndex){
+		GameObject go = Instantiate (GetPiece(pieceIndex));
+		go.transform.position = (Vector3.right * x) + (Vector3.forward * y);
+		boardData [x, y] = pieceIndex;
+	}
+
+	private GameObject GetPiece(int pieceIndex){
+		return piecePrefabs [pieceIndex];
+	}
+
+	private bool ValidMove (int[,] board, int[] fromTile, int[] toTile,
+		int fromPieceIndex, int toPieceIndex, int currentTurn){
+		// need to add stepping through possible interuptions
+		int dx = toTile[0] - fromTile[0];
+		int dy = toTile[1] - fromTile[1];
+
+		// knights
+		if (fromPieceIndex == 1 + 6 * currentTurn) {
+			if ((dx * dx + dy * dy) == 5) {
+				return true;
+			}
+			// bishops / queens
+		} else if (fromPieceIndex == 2 + 6 * currentTurn ) {
+			if (dx * dx == dy * dy) {
+				return StepMove (board, fromTile, dx, dy);
+			}
+			// rooks / queens
+		} else if (fromPieceIndex == 3 + 6 * currentTurn ) {
+			if (dx == 0 || dy == 0) {
+				return StepMove (board, fromTile, dx, dy);
+			}
+			//Queens
+		} else if (fromPieceIndex == 4 + 6 * currentTurn){
+			if (dx * dx == dy * dy || dx == 0 || dy == 0) {
+				return StepMove (board, fromTile, dx, dy);
+			}
+			// kings
+		} else if (fromPieceIndex == 5 + 6 * currentTurn) {
+			if (dx * dx + dy * dy < 3) {
+				return true;
+				// castling
+			} else if (dx * dx == 4 && dy * dy == 0) {
+				// wl, wr, bl, br
+				bool[] castleOptions = new bool[] {castleWhiteLeft, castleWhiteRight, castleBlackLeft, castleBlackRight};
+				if (castleOptions [2 * currentTurn + (dx + 2) / 4]) {
+					if (StepMove (board, fromTile, ((dx + 2) / 4) * 7 - 4, 0)) {
+						int[,] boardClone = (int[,])board.Clone ();
+						boardClone [fromTile [0] + dx / 2, fromTile [1]] = fromPieceIndex;
+						boardClone [fromTile [0], fromTile [1]] = -1;
+						int[] kingPos = FindKing (boardClone, currentTurn);
+						return (!InCheck (boardClone, currentTurn, kingPos));
+
+					}
+				}
+			}
+
+
+		} else if (fromPieceIndex == 6 * currentTurn) {
+			if (dx == 0 && board [toTile [0], toTile [1]] == -1) {
+				if (dy == 1 - 2 * currentTurn || (dy == 2 - 4 * currentTurn && board [toTile [0], toTile [1] - dy / 2] == -1  && fromTile[1] == 1+5*currentTurn)) {
+					if (dy * dy == 4) {
+						passantTile = new int[] { fromTile [0], (fromTile [1] + toTile [1]) / 2 };
+						passantTurn = 2;
+					}
+					return true;
+				}
+				// taking a piece
+			} else if (dx * dx == 1 && dy == 1 - 2 * currentTurn && (board [toTile [0], toTile [1]] != -1 ||
+				(toTile[0] == passantTile [0] && toTile[1] == passantTile[1] && passantTurn ==1 ))) {
+				return true;
+			}
+		} 
+		return false;
+
+	}
+
+	private bool StepMove(int[,] board, int[] fromTile, int dx, int dy){
+		int steps;
+		if (dx != 0) {
+			steps = System.Math.Abs (dx); 
+		} else { 
+			steps = System.Math.Abs (dy);
+		}
+		for (int i = 1; i < steps; i++) {
+			if (board [fromTile [0] + dx / steps * i , fromTile [1] + dy / steps * i] != -1) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
