@@ -553,7 +553,7 @@ public class GameController : MonoBehaviour{
 			selection.SetActive (false);
 			float x = Input.mousePosition.x;
 			float y = Input.mousePosition.y;
-			if (x>offset.x && x<maxim.x && y>offset.y && y<maxim.x){
+			if (x>offset.x && x<maxim.x && y>offset.y && y<maxim.y){
 				selectionX = (int)((x-offset.x)/((maxim.x - offset.x)/8));
 				selectionY = (int)((y-offset.y)/((maxim.y - offset.y)/8));
 				twoSelection.SetActive (true);
