@@ -517,7 +517,9 @@ public class GameController : MonoBehaviour{
 		}
 			
 	}
-
+	/// edited
+	public Transform topRight;
+	public Transform bottomLeft;
 
 	private void UpdateSelection(){
 		if (!Camera.main) {
@@ -542,12 +544,18 @@ public class GameController : MonoBehaviour{
 			}
 			selection.transform.position = new Vector3 (selectionX, 0.01f, selectionY);
 		} else {
+
+			/////// edited
+			Vector3 offset = Camera.main.WorldToScreenPoint(bottomLeft.position);
+			Vector3 maxim =  Camera.main.WorldToScreenPoint(topRight.position);
+		//	Debug.Log("target is " + screenPos.x + " pixels from the left");
+			/////
 			selection.SetActive (false);
 			float x = Input.mousePosition.x;
 			float y = Input.mousePosition.y;
-			if (x>60 && x<572 && y>127 && y<639){
-				selectionX = (int)((x-60)/64);
-				selectionY = (int)((y-127)/64);
+			if (x>offset.x && x<maxim.x && y>offset.y && y<maxim.x){
+				selectionX = (int)((x-offset.x)/((maxim.x - offset.x)/8));
+				selectionY = (int)((y-offset.y)/((maxim.y - offset.y)/8));
 				twoSelection.SetActive (true);
 			} else {
 				twoSelection.SetActive (false);
