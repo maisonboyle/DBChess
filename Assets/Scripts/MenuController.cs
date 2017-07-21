@@ -10,6 +10,8 @@ public class MenuController : MonoBehaviour {
 	public Button BlackUser;
 	public Text WhiteClock;
 	public Text BlackClock;
+	public Toggle WhiteToggle;
+	public Toggle BlackToggle;
 	public Slider WhiteSlider;
 	public Slider BlackSlider;
 
@@ -22,6 +24,14 @@ public class MenuController : MonoBehaviour {
 	public void Start(){
 		white = PlayerPrefs.GetString("White");
 		black = PlayerPrefs.GetString("Black");
+		if (white != "Player") {
+			WhiteSlider.gameObject.SetActive (false);
+			WhiteClock.transform.parent.gameObject.SetActive (false);
+		}
+		if (black != "Player") {
+			BlackSlider.gameObject.SetActive (false);
+			BlackClock.transform.parent.gameObject.SetActive (false);
+		}
 		WhiteUser.GetComponentInChildren<Text> ().text = "White: " + white;
 		BlackUser.GetComponentInChildren<Text> ().text = "Black: " + black;
 	}
@@ -29,8 +39,14 @@ public class MenuController : MonoBehaviour {
 	public void ToggleWhitePlayer(){
 		if (white == "Player") {
 			white = "Computer";
+			WhiteSlider.gameObject.SetActive (false);
+			WhiteClock.transform.parent.gameObject.SetActive (false);
 		} else {
 			white = "Player";
+			WhiteClock.transform.parent.gameObject.SetActive (true);
+			if (WhiteToggle.isOn) {
+				WhiteSlider.gameObject.SetActive (true);
+			}
 		}
 		WhiteUser.GetComponentInChildren<Text> ().text = "White: " + white;
 	}
@@ -38,8 +54,14 @@ public class MenuController : MonoBehaviour {
 	public void ToggleBlackPlayer(){
 		if (black == "Player") {
 			black = "Computer";
+			BlackSlider.gameObject.SetActive (false);
+			BlackClock.transform.parent.gameObject.SetActive (false);
 		} else {
 			black = "Player";
+			BlackClock.transform.parent.gameObject.SetActive (true);
+			if (BlackToggle.isOn) {
+				BlackSlider.gameObject.SetActive (true);
+			}
 		}
 		BlackUser.GetComponentInChildren<Text> ().text = "Black: " + black;
 	}
@@ -84,8 +106,16 @@ public class MenuController : MonoBehaviour {
 	public void LauchGame(){
 		PlayerPrefs.SetString("White", white);
 		PlayerPrefs.SetString("Black", black);
-		PlayerPrefs.SetInt("WhiteTime", whiteTime);
-		PlayerPrefs.SetInt("BlackTime", blackTime);
+		if (white == "Player") {
+			PlayerPrefs.SetInt ("WhiteTime", whiteTime);
+		} else {
+			PlayerPrefs.SetInt ("WhiteTime", 0);
+		}
+		if (black == "Player") {
+			PlayerPrefs.SetInt ("BlackTime", blackTime);
+		} else {
+			PlayerPrefs.SetInt ("BlackTime", 0);
+		}
 
 		SceneManager.LoadScene("Main");
 	}

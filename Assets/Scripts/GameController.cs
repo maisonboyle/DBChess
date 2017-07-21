@@ -9,17 +9,28 @@ public class GameController : MonoBehaviour{
 
 	// [WP,WKn,WB,WR,WQ,WK, bp,bkn,bb,br,bq,bk]
 	public List<GameObject> piecePrefabs;
+	public List<GameObject> twoDimensionPieces;
 	private int[,] boardData = new int[8, 8];
 	private int gameTurn = 0;
 	public Camera camera;
 	public GameObject selection;
+	public GameObject twoSelection;
 	public GameObject chosen;
+	public GameObject twoChosen;
 	public GameObject gameOverButton;
 	public PieceVals pieceVals;
+	public GameObject threePieces;
+	public GameObject twoPieces;
+	public Text whiteTimeText;
+	public Text blackTimeText;
+	public GameObject whiteTurn;
+	public GameObject blackTurn;
 
 	// human (0) or comp (1) for white 1st and black 2nd
 	public int[] players;
 
+	private int[] staleList = new int[] {-1,-2,-3,-4,-5,-6,-7,-8,-9,-1,-25,-3,-4,-5,-6,-7,-8,-9,-10,-2,-3,-4,-5,-6,-7,-8,-9,-1,-2,-31,-4,-5,-6,-7,-8,-9,
+		-1,-2,-3,-4,-5,-6,-7,-8,-9, 17, -5, -2};
 	private int selectionX;
 	private int selectionY;
 	private int[] startTile = new int[] {-1,-1};
@@ -30,11 +41,13 @@ public class GameController : MonoBehaviour{
 	private int[] passantTile = new int[] { 0, 0 };
 	private bool computerMove = false;
 	private bool goToComputer = false;
-
+	private bool threeD = true;
+	private int whiteTime;
+	private int blackTime;
+	private bool gameDone = false;
 	// experimental to try to make better opening
 	private int numberOfMoves = 0;
-
-
+	private int maxDepth = 4;
 
 
 
@@ -42,8 +55,19 @@ public class GameController : MonoBehaviour{
 	private bool castleWhiteLeft = true, castleWhiteRight = true, castleBlackLeft = true, castleBlackRight = true;
 
 
+	public void changeDimension(){
+		threeD = !threeD;
+		if (!threeD) {
+			threePieces.SetActive (false);
+			twoPieces.SetActive (true);
+		} else { 
+			threePieces.SetActive (true);
+			twoPieces.SetActive (false);
+		}
+	}
+
 	public void GameOver(){
-		SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+		SceneManager.LoadScene("Menu");
 	}
 
 	void Update(){
@@ -51,13 +75,75 @@ public class GameController : MonoBehaviour{
 			goToComputer = false;
 			CompTurn ();
 		}
-		if (Input.GetMouseButtonUp(0)) {
+		if (Input.GetMouseButtonUp(0) && !gameDone) {
 			MouseUp ();
 		}
 		UpdateSelection ();
 		if (computerMove) {
 			goToComputer = true;
 		}
+	}
+
+	private int[] updateStale(int[] stale, int[] newMove){
+		return new int[] {
+			stale [4],
+			stale [5],
+			stale [6],
+			stale [7],
+			stale [8],
+			stale [9],
+			stale [10],
+			stale [11],
+			stale [12],
+			stale [13],
+			stale [14],
+			stale [15],
+			stale [16],
+			stale [17],
+			stale [18],
+			stale [19],
+			stale [20],
+			stale [21],
+			stale [22],
+			stale [23],
+			stale [24],
+			stale [25],
+			stale [26],
+			stale [27],
+			stale [28],
+			stale [29],
+			stale [30],
+			stale [31],
+			stale [32],
+			stale [33],
+			stale [34],
+			stale [35],
+			stale [36],
+			stale [37],
+			stale[38], 
+			stale [39],
+			stale [40],
+			stale [41],
+			stale [42],
+			stale [43],
+			stale [44],
+			stale [45],
+			stale [46],
+			stale [47],
+			newMove [0],
+			newMove [1],
+			newMove [2],
+			newMove [3]
+		};
+	}
+
+	private bool isStale(int[] stale){
+		for (int i = 0; i < 16; i++){
+			if (!(stale[i] == stale[16+i] && stale[16+i] == stale[32+i])){
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private void MouseUp(){
@@ -71,6 +157,8 @@ public class GameController : MonoBehaviour{
 			if (pieceIndex > -1 + 6 * gameTurn && pieceIndex < 6 + 6 * gameTurn) {
 				chosen.transform.position = new Vector3 (selectionX, 0.01f, selectionY);
 				chosen.SetActive (true);
+				twoChosen.transform.position = new Vector3 (selectionX, selectionY, 0.01f);
+				twoChosen.SetActive (true);
 				startTile = new int[] { selectionX, selectionY };
 				startPieceIndex = pieceIndex;
 			} else if (startTile[0] != -1){
@@ -84,8 +172,16 @@ public class GameController : MonoBehaviour{
 //						boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 						CastleBools (startTile, endTile);
 						gameTurn = 1 - gameTurn;
+						if (whiteTurn.activeSelf) {
+							whiteTurn.SetActive (false);
+							blackTurn.SetActive (true);
+						} else {
+							whiteTurn.SetActive (true);
+							blackTurn.SetActive (false);
+						}
 						passantTurn -= 1;
 						chosen.SetActive (false);
+						twoChosen.SetActive (false);
 						// drawing castling
 						if ((startPieceIndex == 5 || startPieceIndex == 11) && (startTile [0] - endTile [0]) * (startTile [0] - endTile [0]) == 4) {
 							if (endTile [0] - startTile [0] == -2) {
@@ -102,9 +198,17 @@ public class GameController : MonoBehaviour{
 						boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 						startTile = new int[] { -1, -1 };
 
+
+
 						numberOfMoves += 1;
+						staleList = updateStale (staleList, new int[] { startTile [0], startTile [1], endTile [0], endTile [1] });
+						if (isStale (staleList)) {
+							gameDone = true;
+							gameOverButton.SetActive (true);
+						}
 
 						if (InCheckmate (boardData, gameTurn)) {
+							gameDone = true;
 							gameOverButton.SetActive (true);
 					
 						} else if (players [gameTurn] == 1) {
@@ -116,7 +220,23 @@ public class GameController : MonoBehaviour{
 		}
 	}
 
+	private int HowManyPieces(int[,] board){
+		int total = 0;
+		for (int x = 0; x < 8; x++) {
+			for (int y = 0; y < 8; y++) {
+				int startPieceIndex = board [x, y];
+				if (startPieceIndex != -1) {
+					total += 1;
+				}
+			}
+		}
+		return total;
+	}
+
 	private void CompTurn(){
+		if (HowManyPieces (boardData) < 11) {
+			maxDepth = 5;
+		}
 		int[] moveData;
 		computerMove = false;
 		if (numberOfMoves < 2) {
@@ -136,11 +256,17 @@ public class GameController : MonoBehaviour{
 			}
 		
 		} else {
-			moveData = CompSearch (boardData, gameTurn, 4, 1, 0);
+
+		// thishasbeenchanged
+			moveData = CompSearch (boardData, gameTurn, maxDepth, 1, 0, staleList);
 		}
 
 //		moveData = CompSearch (boardData, gameTurn, 4, 1, 0);
-
+		if (moveData [0] == -1) {
+			gameDone = true;
+			gameOverButton.SetActive (true);
+			return;
+		}
 
 		startTile = new int[] { moveData [0], moveData [1] };
 		endTile = new int[] { moveData [2], moveData [3] };
@@ -148,6 +274,13 @@ public class GameController : MonoBehaviour{
 		endPieceIndex = boardData [endTile [0], endTile [1]];
 		CastleBools (startTile, endTile);
 		gameTurn = 1 - gameTurn;
+		if (whiteTurn.activeSelf) {
+			whiteTurn.SetActive (false);
+			blackTurn.SetActive (true);
+		} else {
+			whiteTurn.SetActive (true);
+			blackTurn.SetActive (false);
+		}
 		passantTurn -= 1;
 		numberOfMoves += 1;
 
@@ -163,15 +296,21 @@ public class GameController : MonoBehaviour{
 		}
 		VisualUpdate (startTile, endTile);
 		// moved boarddata
+		staleList = updateStale (staleList, new int[] { startTile [0], startTile [1], endTile [0], endTile [1] });
+		if (isStale (staleList)) {
+			gameDone = true;
+			gameOverButton.SetActive (true);
+		}
 		boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 		if (InCheckmate (boardData, gameTurn)) {
+			gameDone = true;
 			gameOverButton.SetActive (true);
 		}else if (players [gameTurn] == 1) {
 			computerMove = true;
 		}
 	}
-
-	private int[] CompSearch(int[,] board, int turn, int maxDepth, int currentDepth, int value){
+	//thishasbeenchanged
+	private int[] CompSearch(int[,] board, int turn, int maxDepth, int currentDepth, int value, int[] staleloc){
 		if (currentDepth == 1) {
 			value = pieceVals.FullEvaluate (board);
 		}
@@ -193,10 +332,14 @@ public class GameController : MonoBehaviour{
 										int testValue = value + pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd });
 
 										bool cont = true;
-										if ((turn == 0 && testValue < bestMove [0][4]) || (turn == 1 && testValue > bestMove [0][4])) {
+										if (((turn == 0 && testValue < bestMove [0][4]) || (turn == 1 && testValue > bestMove [0][4])) && maxDepth == 4) {
 											cont = false;
 										}
-										if (currentDepth == maxDepth) {
+										// thishasbeenchanged
+										if (isStale (staleloc)) {
+											testValue = 0;
+										} else if (currentDepth == maxDepth) {
+
 											kingPos = FindKing (boardClone, 1 - turn);
 											if (InCheck (boardClone, 1 - turn, kingPos)) {
 												testValue += 5 - 10 * turn;
@@ -208,9 +351,10 @@ public class GameController : MonoBehaviour{
 										}
 
 										if (currentDepth != maxDepth && cont) {
-											testValue = CompSearch (boardClone,1-turn,maxDepth, currentDepth+1,testValue)[4];
+											// thishasbeenchanged
+											testValue = CompSearch (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}))[4];
 										}
-
+										
 										if (turn == 1) {
 											if (testValue < bestMove [0] [4]) {
 												bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
@@ -337,26 +481,41 @@ public class GameController : MonoBehaviour{
 	}
 
 	private void VisualUpdate(int[] fromTile, int[] toTile){
-		object[] obj = GameObject.FindObjectsOfType(typeof (GameObject));
 		if (boardData [toTile [0], toTile [1]] != -1) {
-			foreach (GameObject o in obj) {
-				if (o.transform.position.x == toTile [0] && o.transform.position.z == toTile [1] && o.CompareTag("Piece")) {
-					Destroy (o);
-					break;
+			foreach (Transform child in threePieces.transform) {
+				if (child.position.x == toTile [0] && child.position.z == toTile [1] && child.gameObject.CompareTag ("Piece")) {
+					Destroy (child.gameObject);
+				} 
+			}
+			foreach (Transform child in twoPieces.transform) {
+				if (child.position.x == toTile [0] && child.position.y == toTile [1] && child.gameObject.CompareTag ("twoDimensionPiece")) {
+					Destroy (child.gameObject);
 				}
 			}
 		}
-		foreach (GameObject o in obj) {
-			if (o.transform.position.x == fromTile [0] && o.transform.position.z == fromTile [1] && o.CompareTag("Piece")) {
+
+		foreach (Transform child in threePieces.transform) {
+			if (child.position.x == fromTile [0] && child.position.z == fromTile [1] && child.gameObject.CompareTag ("Piece")) {
 				if (boardData [fromTile [0], fromTile [1]] % 6 == 0 && toTile [1] % 7 == 0) {
-					Destroy (o);
-					GeneratePiece (toTile [0], toTile [1], boardData [fromTile [0], fromTile [1]] + 4);
-					return;
+					Destroy (child.gameObject);
+//					GeneratePiece (toTile [0], toTile [1], boardData [fromTile [0], fromTile [1]] + 4);
 				}
-				o.transform.position = new Vector3 (toTile [0], 0.0f, toTile [1]);
-				return;
+				child.position = new Vector3 (toTile [0], 0.0f, toTile [1]);
+
+			} 
+		}
+		
+		foreach (Transform child in twoPieces.transform){
+			if (child.position.x == fromTile [0] && child.position.y == fromTile [1] && child.gameObject.CompareTag ("twoDimensionPiece")) {
+
+				if (boardData [fromTile [0], fromTile [1]] % 6 == 0 && toTile [1] % 7 == 0) {
+					Destroy (child.gameObject);
+					GeneratePiece (toTile [0], toTile [1], boardData [fromTile [0], fromTile [1]] + 4);
+				}
+				child.position = new Vector3 (toTile [0], toTile[1], 0.0f);
 			}
 		}
+			
 	}
 
 
@@ -366,23 +525,76 @@ public class GameController : MonoBehaviour{
 		}
 		if (computerMove) {
 			selection.SetActive (false);
+			twoSelection.SetActive (false);
 			return;
 		}
-		RaycastHit hit;
-		if (Physics.Raycast (Camera.main.ScreenPointToRay (Input.mousePosition), out hit, 50.0f, LayerMask.GetMask ("ChessPlane"))) {
-			selectionX = (int)(hit.point.x + 0.5);
-			selectionY = (int)(hit.point.z + 0.5);
-			selection.SetActive (true);
+		if (threeD) {
+			twoSelection.SetActive (false);
+			RaycastHit hit;
+			if (Physics.Raycast (Camera.main.ScreenPointToRay (Input.mousePosition), out hit, 50.0f, LayerMask.GetMask ("ChessPlane"))) {
+				selectionX = (int)(hit.point.x + 0.5);
+				selectionY = (int)(hit.point.z + 0.5);
+				selection.SetActive (true);
+			} else {
+				selection.SetActive (false);
+				selectionX = -1;
+				selectionY = -1;
+			}
+			selection.transform.position = new Vector3 (selectionX, 0.01f, selectionY);
 		} else {
 			selection.SetActive (false);
-			selectionX = -1;
-			selectionY = -1;
+			float x = Input.mousePosition.x;
+			float y = Input.mousePosition.y;
+			if (x>60 && x<572 && y>127 && y<639){
+				selectionX = (int)((x-60)/64);
+				selectionY = (int)((y-127)/64);
+				twoSelection.SetActive (true);
+			} else {
+				twoSelection.SetActive (false);
+				selectionX = -1;
+				selectionY = -1;
+			}
+			twoSelection.transform.position = new Vector3 (selectionX, selectionY, 0.02f);
 		}
-		selection.transform.position = new Vector3 (selectionX, 0.01f, selectionY);
 	}
 
+	void DecreaseTime(){
+		if (gameTurn == 0) {
+			if (whiteTime > 0) {
+				whiteTime -= 1;
+				whiteTimeText.text = "White: " + whiteTime / 60 + ":" + new System.String('0', ((whiteTime % 60).ToString ().Length) % 2) + (whiteTime % 60).ToString ();
+				if (whiteTime == 0) {
+					GameOver ();
+				}
+			}
+		} else if (blackTime > 0) {
+			blackTime -= 1;
+			blackTimeText.text = "Black: " + blackTime / 60 + ":" + new System.String('0', ((blackTime % 60).ToString ().Length) % 2) + (blackTime % 60).ToString ();
+			if (blackTime == 0) {
+				GameOver ();
+			}
+		}
+	}
+
+
 	void Start (){
+		blackTurn.SetActive (false);
+		whiteTurn.SetActive (true);
 		players = new int[] { 0, 0 };
+		whiteTime =  PlayerPrefs.GetInt("WhiteTime") * 60;
+		blackTime = PlayerPrefs.GetInt("BlackTime") * 60;
+		InvokeRepeating("DecreaseTime", 1.0f, 1.0f);
+		if (whiteTime == 0) {
+			whiteTimeText.text = "";
+		} else {
+			whiteTimeText.text = "White: " + whiteTime / 60 + ":" + new System.String('0', ((whiteTime % 60).ToString ().Length) % 2) + (whiteTime % 60).ToString ();
+		}
+		if (blackTime == 0) {
+			blackTimeText.text = "";
+		} else {
+			blackTimeText.text = "Black: " + blackTime / 60 + ":" + new System.String('0', ((blackTime % 60).ToString ().Length) % 2) + (blackTime % 60).ToString ();
+		}
+
 		string white = PlayerPrefs.GetString("White");
 		if (white != "Player") {
 			players [0] = 1;
@@ -428,10 +640,21 @@ public class GameController : MonoBehaviour{
 
 	}
 		
+
+
 	private void GeneratePiece(int x, int y, int pieceIndex){
 		GameObject go = Instantiate (GetPiece(pieceIndex));
 		go.transform.position = (Vector3.right * x) + (Vector3.forward * y);
+		go.transform.parent = threePieces.transform;
+		GameObject twoDimPiece = Instantiate (GetPieceTwo (pieceIndex));
+		twoDimPiece.transform.position = (Vector3.right * x) + (Vector3.up * y);
+		twoDimPiece.transform.parent = twoPieces.transform;
+
 		boardData [x, y] = pieceIndex;
+	}
+
+	private GameObject GetPieceTwo(int pieceIndex){
+		return twoDimensionPieces [pieceIndex];
 	}
 
 	private GameObject GetPiece(int pieceIndex){
@@ -443,7 +666,8 @@ public class GameController : MonoBehaviour{
 		// need to add stepping through possible interuptions
 		int dx = toTile[0] - fromTile[0];
 		int dy = toTile[1] - fromTile[1];
-
+		if (fromTile [0] + dx > 7 || fromTile [1] + dy > 7 || fromTile[0] - dx < 0 || fromTile[1] - dy < 0) {
+		}
 		// knights
 		if (fromPieceIndex == 1 + 6 * currentTurn) {
 			if ((dx * dx + dy * dy) == 5) {
@@ -469,11 +693,16 @@ public class GameController : MonoBehaviour{
 			if (dx * dx + dy * dy < 3) {
 				return true;
 				// castling
-			} else if (dx * dx == 4 && dy * dy == 0) {
+			} else if (dx * dx == 4 && dy * dy == 0 && fromTile[0] == 4 && fromTile[1]%7 ==0) {
 				// wl, wr, bl, br
 				bool[] castleOptions = new bool[] {castleWhiteLeft, castleWhiteRight, castleBlackLeft, castleBlackRight};
 				if (castleOptions [2 * currentTurn + (dx + 2) / 4]) {
+
 					if (StepMove (board, fromTile, ((dx + 2) / 4) * 7 - 4, 0)) {
+						int[] prekingPos = FindKing (board, currentTurn);
+						if (InCheck (board, currentTurn, prekingPos)) {
+							return false;
+						}
 						int[,] boardClone = (int[,])board.Clone ();
 						boardClone [fromTile [0] + dx / 2, fromTile [1]] = fromPieceIndex;
 						boardClone [fromTile [0], fromTile [1]] = -1;
@@ -511,11 +740,14 @@ public class GameController : MonoBehaviour{
 		} else { 
 			steps = System.Math.Abs (dy);
 		}
+
 		for (int i = 1; i < steps; i++) {
 			if (board [fromTile [0] + dx / steps * i , fromTile [1] + dy / steps * i] != -1) {
 				return false;
 			}
 		}
 		return true;
+
+
 	}
 }

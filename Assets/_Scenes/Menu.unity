@@ -1121,6 +1121,8 @@ MonoBehaviour:
   BlackUser: {fileID: 769716804}
   WhiteClock: {fileID: 1454499163}
   BlackClock: {fileID: 1950167085}
+  WhiteToggle: {fileID: 377943877}
+  BlackToggle: {fileID: 1604985440}
   WhiteSlider: {fileID: 1123600346}
   BlackSlider: {fileID: 441304000}
 --- !u!4 &1046547686
