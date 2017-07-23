@@ -23,6 +23,7 @@ public class GameController : MonoBehaviour{
 	public GameObject twoPieces;
 	public Text whiteTimeText;
 	public Text blackTimeText;
+	public Text moveLogText;
 	public GameObject whiteTurn;
 	public GameObject blackTurn;
 
@@ -49,11 +50,42 @@ public class GameController : MonoBehaviour{
 	private int numberOfMoves = 0;
 	private int maxDepth = 4;
 
+	private string[] across = new string[] {"a","b","c","d","e","f","g","h"};
+	private string[] up = new string[] {"1","2","3","4","5","6","7","8"};
+	private List<string> moveLog = new List<string>();
 
 
 	// castling represented by moving king across two
 	private bool castleWhiteLeft = true, castleWhiteRight = true, castleBlackLeft = true, castleBlackRight = true;
 
+	private void UpdateMoveLog(int[] move){
+		string moveText;
+		if (move [0] - move [2] == 2 && boardData [move [0], move [1]] % 6 == 5) {
+			 moveText = "O-O-O";
+		} else if (move [0] - move [2] == -2 && boardData [move [0], move [1]] % 6 == 5) {
+			 moveText = "O-O";
+		} else {
+			 moveText = across [move [0]] + up [move [1]] + across [move [2]] + up [move [3]];
+		}
+		if (numberOfMoves % 2 == 0) {
+			moveText = ((numberOfMoves + 2) / 2).ToString() + ": " + moveText;
+		}
+		moveLog.Add (moveText);
+		if (moveLog.Count >= 9) {
+			moveLog.RemoveAt (0);
+			moveLog.RemoveAt (0);
+		}
+
+		moveLogText.text = "";
+
+		if (moveLog.Count % 2 == 1) {
+			moveLogText.text = moveLog [moveLog.Count - 1] + "\n";
+		}
+		for (int i = moveLog.Count / 2; i > 0; i--) {
+			moveLogText.text += moveLog [2 * i - 2] + "  " + moveLog [2 * i - 1] + "\n";
+		}
+
+	}
 
 	public void changeDimension(){
 		threeD = !threeD;
@@ -172,6 +204,7 @@ public class GameController : MonoBehaviour{
 //						boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 						CastleBools (startTile, endTile);
 						gameTurn = 1 - gameTurn;
+						UpdateMoveLog (new int[] { startTile [0], startTile [1], endTile [0], endTile [1] });
 						if (whiteTurn.activeSelf) {
 							whiteTurn.SetActive (false);
 							blackTurn.SetActive (true);
@@ -205,11 +238,13 @@ public class GameController : MonoBehaviour{
 						if (isStale (staleList)) {
 							gameDone = true;
 							gameOverButton.SetActive (true);
+							Invoke ("Ending", 4.0f);
 						}
 
 						if (InCheckmate (boardData, gameTurn)) {
 							gameDone = true;
 							gameOverButton.SetActive (true);
+							Invoke ("Ending", 4.0f);
 					
 						} else if (players [gameTurn] == 1) {
 							computerMove = true;
@@ -219,6 +254,11 @@ public class GameController : MonoBehaviour{
 			}
 		}
 	}
+
+	private void Ending(){
+		gameOverButton.SetActive (false);
+	}
+
 
 	private int HowManyPieces(int[,] board){
 		int total = 0;
@@ -234,9 +274,7 @@ public class GameController : MonoBehaviour{
 	}
 
 	private void CompTurn(){
-		if (HowManyPieces (boardData) < 11) {
-			maxDepth = 5;
-		}
+		
 		int[] moveData;
 		computerMove = false;
 		if (numberOfMoves < 2) {
@@ -265,6 +303,7 @@ public class GameController : MonoBehaviour{
 		if (moveData [0] == -1) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
+			Invoke ("Ending", 4.0f);
 			return;
 		}
 
@@ -274,6 +313,7 @@ public class GameController : MonoBehaviour{
 		endPieceIndex = boardData [endTile [0], endTile [1]];
 		CastleBools (startTile, endTile);
 		gameTurn = 1 - gameTurn;
+		UpdateMoveLog(new int[] {startTile[0],startTile[1], endTile[0],endTile[1]});
 		if (whiteTurn.activeSelf) {
 			whiteTurn.SetActive (false);
 			blackTurn.SetActive (true);
@@ -300,11 +340,13 @@ public class GameController : MonoBehaviour{
 		if (isStale (staleList)) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
+			Invoke ("Ending", 4.0f);
 		}
 		boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 		if (InCheckmate (boardData, gameTurn)) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
+			Invoke ("Ending", 4.0f);
 		}else if (players [gameTurn] == 1) {
 			computerMove = true;
 		}
@@ -356,12 +398,12 @@ public class GameController : MonoBehaviour{
 										}
 										
 										if (turn == 1) {
-											if (testValue < bestMove [0] [4]) {
+											if (testValue < bestMove [0] [4] || bestMove[0][4] == 100000) {
 												bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
 											} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
 												bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
 											}
-										} else if (testValue > bestMove [0] [4]) {
+										} else if (testValue > bestMove [0] [4] || bestMove[0][4] == -100000) {
 											bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
 										} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
 											bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
@@ -586,6 +628,8 @@ public class GameController : MonoBehaviour{
 
 
 	void Start (){
+		moveLogText.text = "";
+		PlayerPrefs.SetInt ("Depth", 4);
 		blackTurn.SetActive (false);
 		whiteTurn.SetActive (true);
 		players = new int[] { 0, 0 };
