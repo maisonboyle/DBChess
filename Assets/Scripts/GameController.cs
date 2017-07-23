@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -26,6 +27,11 @@ public class GameController : MonoBehaviour{
 	public GameObject whiteTurn;
 	public GameObject blackTurn;
 
+	// threading setup
+	public int numberOfThreads;
+	private int threadsComplete;
+	private int[][] threadResults = new int[numberOfThreads][];
+
 	// human (0) or comp (1) for white 1st and black 2nd
 	public int[] players;
 
@@ -48,6 +54,7 @@ public class GameController : MonoBehaviour{
 	// experimental to try to make better opening
 	private int numberOfMoves = 0;
 	private int maxDepth = 4;
+	private List<int[]> openingMoves = new List<int[]>();
 
 
 
@@ -242,14 +249,15 @@ public class GameController : MonoBehaviour{
 		if (numberOfMoves < 2) {
 			moveData = new int[] { 4, 1 + 5 * gameTurn, 4, 3 + gameTurn, 0 };
 			int[,] boardClone = (int[,])boardData.Clone ();
-			boardClone = MakeMove (boardClone, new int[] {4, 1 + 5 * gameTurn}, new int[] {4, 3+gameTurn}, 6*gameTurn, -1);
+			boardClone = MakeMove (boardClone, new int[] { 4, 1 + 5 * gameTurn }, new int[] { 4, 3 + gameTurn }, 6 * gameTurn, -1);
 			for (int xStart = 0; xStart < 8; xStart++) {
 				for (int yStart = 0; yStart < 8; yStart++) {
 					int startPieceIndex = boardClone [xStart, yStart];
-					if (startPieceIndex > -1 + 6 * (1-gameTurn) && startPieceIndex < 6 + 6 * (1-gameTurn)) {
-						if (ValidMove(boardClone, new int[] {xStart,yStart}, new int[] {4, 3+gameTurn},startPieceIndex, 6*gameTurn, (1-gameTurn))){
+					if (startPieceIndex > -1 + 6 * (1 - gameTurn) && startPieceIndex < 6 + 6 * (1 - gameTurn)) {
+						if (ValidMove (boardClone, new int[] { xStart, yStart }, new int[] { 4, 3 + gameTurn }, startPieceIndex, 6 * gameTurn, (1 - gameTurn))) {
 							moveData = new int[] { 3, 1 + 5 * gameTurn, 3, 3 + gameTurn, 0 };
-							break;
+							completeCompGo (moveData);
+							return;
 						}
 					}
 				}
@@ -257,9 +265,49 @@ public class GameController : MonoBehaviour{
 		
 		} else {
 
-		// thishasbeenchanged
-			moveData = CompSearch (boardData, gameTurn, maxDepth, 1, 0, staleList);
+			// thishasbeenchanged
+			// Change to search for all options then send segment of options to each of (6) threads
+//			moveData = CompSearch (boardData, gameTurn, maxDepth, 1, 0, staleList);
+			for (int xStart = 0; xStart < 8; xStart++) {
+				for (int yStart = 0; yStart < 8; yStart++) {
+					int startPieceIndex = boardData [xStart, yStart];
+					if (startPieceIndex > -1 + 6 * gameTurn && startPieceIndex < 6 + 6 * gameTurn) {
+						for (int xEnd = 0; xEnd < 8; xEnd++) {
+							for (int yEnd = 0; yEnd < 8; yEnd++) {
+								int endPieceIndex = boardData [xEnd, yEnd];
+								if (endPieceIndex < 6 * gameTurn || endPieceIndex > 5 + 6 * gameTurn) {
+									if (ValidMove (boardData, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex, gameTurn)) {
+										int[,] boardClone = (int[,])boardData.Clone ();
+										boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex);
+										int[] kingPos = FindKing (boardClone, gameTurn);
+										if (!InCheck (boardClone, gameTurn, kingPos)) {
+											openingMoves.Add (new int[] { xStart, yStart, xEnd, yEnd });
+											// add to list of opening moves ready to send to workers
+
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// activate workers
+			for (int i = 0; i < numberOfThreads; i++) {				
+				ParameterizedThreadStart pts = new ParameterizedThreadStart (ThreadWork);
+				Thread worker = new System.Threading.Thread (pts);
+				worker.Start (i);
+			}
 		}
+	}
+
+	private void ThreadWork(){
+
+	}
+
+
+	private void completeCompGo(int[] moveData){
 
 //		moveData = CompSearch (boardData, gameTurn, 4, 1, 0);
 		if (moveData [0] == -1) {
