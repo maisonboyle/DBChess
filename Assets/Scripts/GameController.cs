@@ -8,6 +8,10 @@ using UnityEngine.SceneManagement;
 public class GameController : MonoBehaviour{
 
 	// [WP,WKn,WB,WR,WQ,WK, bp,bkn,bb,br,bq,bk]
+	public GameObject fromtwo;
+	public GameObject fromthree;
+	public GameObject totwo;
+	public GameObject tothree;
 	public List<GameObject> piecePrefabs;
 	public List<GameObject> twoDimensionPieces;
 	private int[,] boardData = new int[8, 8];
@@ -357,7 +361,8 @@ public class GameController : MonoBehaviour{
 			value = pieceVals.FullEvaluate (board);
 		}
 		// bestmove format xstart, ystart, xend, yend, value
-		List<int[]> bestMove = new List<int[]> {new int[] {-1,-1,-1,-1,-100000+200000*turn}};
+		List<int[]> validMoves = new List<int[]> ();
+		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -100000 + 200000 * turn } };
 		for (int xStart = 0; xStart < 8; xStart++) {
 			for (int yStart = 0; yStart < 8; yStart++) {
 				int startPieceIndex = board [xStart, yStart];
@@ -367,54 +372,61 @@ public class GameController : MonoBehaviour{
 							int endPieceIndex = board [xEnd, yEnd];
 							if (endPieceIndex < 6 * turn || endPieceIndex > 5 + 6 * turn) {
 								if (ValidMove (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex, turn)) {
-									int[,] boardClone = (int[,])board.Clone ();
-									boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex);
-									int[] kingPos = FindKing (boardClone, turn);
-									if (!InCheck (boardClone, turn, kingPos)) {
-										int testValue = value + pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd });
-
-										bool cont = true;
-										if (((turn == 0 && testValue < bestMove [0][4]) || (turn == 1 && testValue > bestMove [0][4])) && maxDepth == 4) {
-											cont = false;
-										}
-										// thishasbeenchanged
-										if (isStale (staleloc)) {
-											testValue = 0;
-										} else if (currentDepth == maxDepth) {
-
-											kingPos = FindKing (boardClone, 1 - turn);
-											if (InCheck (boardClone, 1 - turn, kingPos)) {
-												testValue += 5 - 10 * turn;
-												if (InCheckmate (boardClone, 1 - turn)) {
-													testValue += 2000 - 4000 * turn;
-												}
-											}
-											// adjust score if check found here
-										}
-
-										if (currentDepth != maxDepth && cont) {
-											// thishasbeenchanged
-											testValue = CompSearch (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}))[4];
-										}
-										
-										if (turn == 1) {
-											if (testValue < bestMove [0] [4] || bestMove[0][4] == 100000) {
-												bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
-											} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
-												bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
-											}
-										} else if (testValue > bestMove [0] [4] || bestMove[0][4] == -100000) {
-											bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
-										} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
-											bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
-										}
-									
+									if (endPieceIndex == -1) {
+										validMoves.Add (new int[] { xStart, yStart, xEnd, yEnd });
+									} else {
+										validMoves.Insert (0, new int[] { xStart, yStart, xEnd, yEnd });
 									}
 								}
 							}
 						}
 					}
 				}
+			}
+		}
+		foreach (int[] move in validMoves){
+			int xStart = move [0], yStart = move [1], xEnd = move [2], yEnd = move [3]; 
+			int[,] boardClone = (int[,])board.Clone ();
+			boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, boardClone[xStart,yStart], boardClone[xEnd,yEnd]);
+			int[] kingPos = FindKing (boardClone, turn);
+			if (!InCheck (boardClone, turn, kingPos)) {
+				int testValue = value + pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd });
+
+				bool cont = true;
+				// test performance when commented out
+				if ((turn == 0 && testValue < bestMove [0][4]) || (turn == 1 && testValue > bestMove [0][4])) {
+					cont = false;
+				}
+				// thishasbeenchanged
+				if (isStale (staleloc)) {
+					testValue = 0;
+				} else if (currentDepth == maxDepth) {
+
+					kingPos = FindKing (boardClone, 1 - turn);
+					if (InCheck (boardClone, 1 - turn, kingPos)) {
+						testValue += 5 - 10 * turn;
+						if (InCheckmate (boardClone, 1 - turn)) {
+							testValue += 4000 - 8000 * turn;
+						}
+					}
+				}
+
+				if (currentDepth != maxDepth && cont) {
+					testValue = CompSearch (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}))[4];
+				}
+
+				if (turn == 1) {
+					if (testValue < bestMove [0] [4] || bestMove[0][4] == 100000) {
+						bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
+					} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
+						bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
+					}
+				} else if (testValue > bestMove [0] [4] || bestMove[0][4] == -100000) {
+					bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
+				} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
+					bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
+				}
+
 			}
 		}
 		return bestMove[Random.Range (0, bestMove.Count)];
@@ -523,6 +535,15 @@ public class GameController : MonoBehaviour{
 	}
 
 	private void VisualUpdate(int[] fromTile, int[] toTile){
+		fromtwo.SetActive (true);
+		fromthree.SetActive (true);
+		totwo.SetActive (true);
+		tothree.SetActive (true);
+		fromtwo.transform.position = new Vector3 (fromTile [0], fromTile[1], 0.02f);
+		totwo.transform.position = new Vector3 (toTile [0], toTile[1], 0.02f);
+		fromthree.transform.position = new Vector3 (fromTile [0], 0.02f, fromTile[1]);
+		tothree.transform.position = new Vector3 (toTile [0], 0.02f, toTile[1]);
+
 		if (boardData [toTile [0], toTile [1]] != -1) {
 			foreach (Transform child in threePieces.transform) {
 				if (child.position.x == toTile [0] && child.position.z == toTile [1] && child.gameObject.CompareTag ("Piece")) {
