@@ -52,7 +52,7 @@ public class GameController : MonoBehaviour{
 	private bool gameDone = false;
 	// experimental to try to make better opening
 	private int numberOfMoves = 0;
-	private int maxDepth = 4;
+	private int maxDepth;
 
 	private string[] across = new string[] {"a","b","c","d","e","f","g","h"};
 	private string[] up = new string[] {"1","2","3","4","5","6","7","8"};
@@ -386,7 +386,10 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		}
-		int[] bestMove = new int[] {-1,-1,-1,-1,-10000+20000*turn};
+		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -10000 + 20000 * turn } };
+		if (currentDepth == 1 && validMoves.Count != 0) {
+			bestMove = new List<int[]> { new int[] { validMoves[0][0], validMoves[0][1], validMoves[0][2], validMoves[0][3], -10000 + 20000 * turn }};
+		}
 		foreach (int[] move in validMoves){
 			int xStart = move [0], yStart = move [1], xEnd = move [2], yEnd = move [3]; 
 			int[,] boardClone = (int[,])board.Clone ();
@@ -414,11 +417,13 @@ public class GameController : MonoBehaviour{
 					return new int[] { move [0], move [1], move [2], move [3], testValue };
 				}if (testValue < upperCutOff) {
 					upperCutOff = testValue;
-					bestMove = new int[] { move [0], move [1], move [2], move [3], testValue};
+					bestMove = new List<int[]> {new int[] { move [0], move [1], move [2], move [3], testValue }};
+				} else if (testValue == upperCutOff && currentDepth == 1) {
+					bestMove.Add(new int[] { move [0], move [1], move [2], move [3], testValue});
 				}
 			}
 		}
-		return bestMove;
+		return bestMove[Random.Range (0, bestMove.Count)];
 	}
 
 
@@ -449,7 +454,10 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		}
-		int[] bestMove = new int[] {-1,-1,-1,-1,-10000+20000*turn};
+		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -10000 + 20000 * turn } };
+		if (currentDepth == 1 && validMoves.Count != 0) {
+			bestMove = new List<int[]> { new int[] { validMoves[0][0], validMoves[0][1], validMoves[0][2], validMoves[0][3], -10000 + 20000 * turn } };
+		}
 		foreach (int[] move in validMoves){
 			int xStart = move [0], yStart = move [1], xEnd = move [2], yEnd = move [3]; 
 			int[,] boardClone = (int[,])board.Clone ();
@@ -474,14 +482,16 @@ public class GameController : MonoBehaviour{
 					testValue = AlphaBetaMin (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}), lowerCutoff, upperCutOff)[4];
 				}
 				if (testValue >= upperCutOff) {
-					return new int[] {move [0], move [1], move [2], move [3], testValue};
+					return new int[] {move [0], move [1], move [2], move [3], testValue}; 
 				}if (testValue > lowerCutoff) {
 					lowerCutoff = testValue;
-					bestMove = new int[] { move [0], move [1], move [2], move [3], testValue};
+					bestMove = new List<int[]> {new int[] { move [0], move [1], move [2], move [3], testValue }};
+				} else if (testValue == lowerCutoff && currentDepth == 1) {
+					bestMove.Add(new int[] { move [0], move [1], move [2], move [3], testValue});
 				}
 			}
 		}
-		return bestMove;
+		return bestMove[Random.Range (0, bestMove.Count)];
 	}
 
 
@@ -784,7 +794,8 @@ public class GameController : MonoBehaviour{
 
 	void Start (){
 		moveLogText.text = "";
-		PlayerPrefs.SetInt ("Depth", 4);
+
+		maxDepth = PlayerPrefs.GetInt ("Depth");
 		blackTurn.SetActive (false);
 		whiteTurn.SetActive (true);
 		players = new int[] { 0, 0 };

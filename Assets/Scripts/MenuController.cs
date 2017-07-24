@@ -15,13 +15,32 @@ public class MenuController : MonoBehaviour {
 	public Slider WhiteSlider;
 	public Slider BlackSlider;
 
+	public Slider searchDepth;
+	public Text depthText;
+
+
 	private string white = "Player";
 	private string black = "Player";
 	private int whiteTime = 0;
 	private int blackTime = 0;
 
 
+	public void DevSwitch(){
+		if (depthText.gameObject.activeSelf) {
+			depthText.gameObject.SetActive (false);
+			searchDepth.gameObject.SetActive (false);
+		} else {
+			depthText.gameObject.SetActive (true);
+			searchDepth.gameObject.SetActive (true);
+		}
+	}
+
+	public void DepthChanged(){
+		depthText.text = "Depth: " + (int)searchDepth.value;
+	}
+
 	public void Start(){
+		depthText.text = "Depth: " + (int)searchDepth.value;
 		white = PlayerPrefs.GetString("White");
 		black = PlayerPrefs.GetString("Black");
 		if (white != "Player") {
@@ -106,6 +125,7 @@ public class MenuController : MonoBehaviour {
 	public void LauchGame(){
 		PlayerPrefs.SetString("White", white);
 		PlayerPrefs.SetString("Black", black);
+		PlayerPrefs.SetInt ("Depth", (int)searchDepth.value);
 		if (white == "Player") {
 			PlayerPrefs.SetInt ("WhiteTime", whiteTime);
 		} else {
