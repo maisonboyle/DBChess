@@ -594,7 +594,7 @@ PlayerSettings:
   facebookSdkVersion: 7.9.4
   apiCompatibilityLevel: 2
   cloudProjectId: e8ab9842-7fb9-4167-96ae-44029b283e6e
-  projectName: DBThread
+  projectName: DBChess
   organizationId: maisonboyle
   cloudEnabled: 0
   enableNativePlatformBackendsForNewInputSystem: 0
