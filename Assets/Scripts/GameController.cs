@@ -27,10 +27,16 @@ public class GameController : MonoBehaviour{
 	public GameObject whiteTurn;
 	public GameObject blackTurn;
 
+	public Text moveLogText;
+	private string[] across = new string[] {"a","b","c","d","e","f","g","h"};
+	private string[] up = new string[] {"1","2","3","4","5","6","7","8"};
+	private List<string> moveLog = new List<string>();
+
 	// threading setup
 	public int numberOfThreads;
-	private int threadsComplete;
-	private int[][] threadResults = new int[numberOfThreads][];
+	private int threadsComplete = 0;
+	private int[][] threadResults;
+	private List<int[]> possibleMoves = new List<int[]>();
 
 	// human (0) or comp (1) for white 1st and black 2nd
 	public int[] players;
@@ -54,13 +60,41 @@ public class GameController : MonoBehaviour{
 	// experimental to try to make better opening
 	private int numberOfMoves = 0;
 	private int maxDepth = 4;
-	private List<int[]> openingMoves = new List<int[]>();
 
+	System.Random rnd = new System.Random();
 
 
 	// castling represented by moving king across two
 	private bool castleWhiteLeft = true, castleWhiteRight = true, castleBlackLeft = true, castleBlackRight = true;
 
+
+	private void UpdateMoveLog(int[] move){
+		string moveText;
+		if (move [0] - move [2] == 2 && boardData [move [0], move [1]] % 6 == 5) {
+			 moveText = "O-O-O";
+		} else if (move [0] - move [2] == -2 && boardData [move [0], move [1]] % 6 == 5) {
+			moveText = "O-O";
+		} else {
+			 moveText = across [move [0]] + up [move [1]] + across [move [2]] + up [move [3]];
+			}
+		if (numberOfMoves % 2 == 0) {
+			moveText = ((numberOfMoves + 2) / 2).ToString() + ": " + moveText;
+			}
+		moveLog.Add (moveText);
+		if (moveLog.Count >= 9) {
+			moveLog.RemoveAt (0);
+			moveLog.RemoveAt (0);
+			}
+
+		moveLogText.text = "";
+
+		if (moveLog.Count % 2 == 1) {
+			moveLogText.text = moveLog [moveLog.Count - 1] + "\n";
+			}
+		for (int i = moveLog.Count / 2; i > 0; i--) {
+			moveLogText.text += moveLog [2 * i - 2] + "  " + moveLog [2 * i - 1] + "\n";
+			}
+		}
 
 	public void changeDimension(){
 		threeD = !threeD;
@@ -78,6 +112,27 @@ public class GameController : MonoBehaviour{
 	}
 
 	void Update(){
+
+		if (threadsComplete == numberOfThreads) {
+			threadsComplete = 0;
+			List<int[]> bestMove = new List<int[]> {new int[] {-1,-1,-1,-1,-100000+200000*gameTurn}};
+			for (int i = 0; i < threadResults.Length; i++) {
+				if (gameTurn == 1) {
+					if (threadResults[i][4] < bestMove [0] [4] || bestMove[0][0] == -1) {
+						bestMove = new List<int[]> {threadResults[i]};
+					} else if (threadResults[i][4] == bestMove [0] [4]) { 
+						bestMove.Add (threadResults[i]);
+					}
+				} else if (threadResults[i][4] > bestMove [0] [4] || bestMove[0][0] == -1) {
+					bestMove = new List<int[]> { threadResults[i]};
+				} else if (threadResults[i][4] == bestMove [0] [4]) {
+					bestMove.Add (threadResults[i]);
+				}
+			}
+			completeCompGo (bestMove [Random.Range (0, bestMove.Count)]);
+		}
+
+
 		if (goToComputer) {
 			goToComputer = false;
 			CompTurn ();
@@ -179,6 +234,7 @@ public class GameController : MonoBehaviour{
 //						boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 						CastleBools (startTile, endTile);
 						gameTurn = 1 - gameTurn;
+						UpdateMoveLog (new int[] { startTile [0], startTile [1], endTile [0], endTile [1] });
 						if (whiteTurn.activeSelf) {
 							whiteTurn.SetActive (false);
 							blackTurn.SetActive (true);
@@ -211,12 +267,16 @@ public class GameController : MonoBehaviour{
 						staleList = updateStale (staleList, new int[] { startTile [0], startTile [1], endTile [0], endTile [1] });
 						if (isStale (staleList)) {
 							gameDone = true;
+
 							gameOverButton.SetActive (true);
+							Invoke ("Ending", 4.0f);
 						}
 
 						if (InCheckmate (boardData, gameTurn)) {
+
 							gameDone = true;
 							gameOverButton.SetActive (true);
+							Invoke ("Ending", 4.0f);
 					
 						} else if (players [gameTurn] == 1) {
 							computerMove = true;
@@ -226,6 +286,10 @@ public class GameController : MonoBehaviour{
 			}
 		}
 	}
+
+	private void Ending(){
+		gameOverButton.SetActive (false);
+		}
 
 	private int HowManyPieces(int[,] board){
 		int total = 0;
@@ -241,9 +305,7 @@ public class GameController : MonoBehaviour{
 	}
 
 	private void CompTurn(){
-		if (HowManyPieces (boardData) < 11) {
-			maxDepth = 5;
-		}
+		
 		int[] moveData;
 		computerMove = false;
 		if (numberOfMoves < 2) {
@@ -262,6 +324,7 @@ public class GameController : MonoBehaviour{
 					}
 				}
 			}
+			completeCompGo (moveData);
 		
 		} else {
 
@@ -281,7 +344,7 @@ public class GameController : MonoBehaviour{
 										boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex);
 										int[] kingPos = FindKing (boardClone, gameTurn);
 										if (!InCheck (boardClone, gameTurn, kingPos)) {
-											openingMoves.Add (new int[] { xStart, yStart, xEnd, yEnd });
+											possibleMoves.Add (new int[] { xStart, yStart, xEnd, yEnd });
 											// add to list of opening moves ready to send to workers
 
 										}
@@ -292,9 +355,9 @@ public class GameController : MonoBehaviour{
 					}
 				}
 			}
-
+			Debug.Log (possibleMoves.Count);
 			// activate workers
-			for (int i = 0; i < numberOfThreads; i++) {				
+			for (int i = 0; i < numberOfThreads; i++) {	
 				ParameterizedThreadStart pts = new ParameterizedThreadStart (ThreadWork);
 				Thread worker = new System.Threading.Thread (pts);
 				worker.Start (i);
@@ -302,8 +365,67 @@ public class GameController : MonoBehaviour{
 		}
 	}
 
-	private void ThreadWork(){
+	private void ThreadWork(object i){
+		int[,] threadBoard = (int[,])boardData.Clone ();
+//		Debug.Log ("Thread " + i.ToString());
+		List<int[]> bestMove = new List<int[]> {new int[] {-1,-1,-1,-1,-100000+200000*gameTurn}};
+		int segment = (int)i;
+		int startIterate = (possibleMoves.Count / numberOfThreads) * segment;
+		int endIterate;
+		if (segment == numberOfThreads - 1) {
+			endIterate = possibleMoves.Count;
+		} else {
+			endIterate = (possibleMoves.Count / numberOfThreads) * (segment + 1);
+		}
+		for (int moveIndex = startIterate; moveIndex < endIterate; moveIndex++) {
+//			Debug.Log (moveIndex.ToString() + " started");
+			int xStart = possibleMoves [moveIndex] [0];
+			int yStart = possibleMoves [moveIndex] [1];
+			int xEnd = possibleMoves [moveIndex] [2];
+			int yEnd = possibleMoves [moveIndex] [3];
+				
+			int[,] boardClone = (int[,])threadBoard.Clone ();
+			boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, boardClone[xStart,yStart],  boardClone[xEnd,yEnd]);
+			int baseValue = pieceVals.FullEvaluate (boardClone);
+			int[] staleloc = updateStale (staleList, new int[] { xStart, yStart, xEnd, yEnd });
+			///////////////////
+			int value;
 
+
+// works from here			
+
+			// thishasbeenchanged
+			if (isStale (staleloc)) {
+				value = 0;
+			} else {
+				Debug.Log (moveIndex.ToString() + " started");
+				// thishasbeenchanged
+				value = CompSearch (boardClone, 1 - gameTurn, maxDepth, 2, baseValue, staleloc) [4];
+				Debug.Log (moveIndex.ToString() + " calced");
+			}
+
+// fails by here
+
+
+
+
+			if (gameTurn == 1) {
+				if (value < bestMove [0] [4] || bestMove[0][0] == -1) {
+					bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, value } };
+				} else if (value == bestMove [0] [4]) { 
+					bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, value });
+				}
+			} else if (value > bestMove [0] [4] || bestMove[0][0] == -1) {
+				bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, value } };
+			} else if (value == bestMove [0] [4]) {
+				bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, value });
+			}
+
+		}
+		int index = rnd.Next (bestMove.Count); 
+		threadResults[segment] = bestMove[index];
+		threadsComplete++;
+		Debug.Log ("Finished " + i.ToString());
 	}
 
 
@@ -313,6 +435,7 @@ public class GameController : MonoBehaviour{
 		if (moveData [0] == -1) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
+			Invoke ("Ending", 4.0f);
 			return;
 		}
 
@@ -322,6 +445,7 @@ public class GameController : MonoBehaviour{
 		endPieceIndex = boardData [endTile [0], endTile [1]];
 		CastleBools (startTile, endTile);
 		gameTurn = 1 - gameTurn;
+		UpdateMoveLog(new int[] {startTile[0],startTile[1], endTile[0],endTile[1]});
 		if (whiteTurn.activeSelf) {
 			whiteTurn.SetActive (false);
 			blackTurn.SetActive (true);
@@ -348,22 +472,28 @@ public class GameController : MonoBehaviour{
 		if (isStale (staleList)) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
+
+			Invoke ("Ending", 4.0f);
 		}
 		boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 		if (InCheckmate (boardData, gameTurn)) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
+
+			Invoke ("Ending", 4.0f);
 		}else if (players [gameTurn] == 1) {
 			computerMove = true;
 		}
 	}
 	//thishasbeenchanged
 	private int[] CompSearch(int[,] board, int turn, int maxDepth, int currentDepth, int value, int[] staleloc){
-		if (currentDepth == 1) {
-			value = pieceVals.FullEvaluate (board);
-		}
+		
 		// bestmove format xstart, ystart, xend, yend, value
 		List<int[]> bestMove = new List<int[]> {new int[] {-1,-1,-1,-1,-100000+200000*turn}};
+		if (currentDepth == 2) {
+			Debug.Log ("reached search");
+			//			value = pieceVals.FullEvaluate (board);
+		}
 		for (int xStart = 0; xStart < 8; xStart++) {
 			for (int yStart = 0; yStart < 8; yStart++) {
 				int startPieceIndex = board [xStart, yStart];
@@ -402,7 +532,6 @@ public class GameController : MonoBehaviour{
 											// thishasbeenchanged
 											testValue = CompSearch (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}))[4];
 										}
-										
 										if (turn == 1) {
 											if (testValue < bestMove [0] [4]) {
 												bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
@@ -423,7 +552,11 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		}
-		return bestMove[Random.Range (0, bestMove.Count)];
+		if (currentDepth == 2) {
+			Debug.Log ("End of search");
+		}
+		int index = rnd.Next (bestMove.Count);
+		return bestMove[index];
 	}
 
 
@@ -596,8 +729,7 @@ public class GameController : MonoBehaviour{
 			/////// edited
 			Vector3 offset = Camera.main.WorldToScreenPoint(bottomLeft.position);
 			Vector3 maxim =  Camera.main.WorldToScreenPoint(topRight.position);
-		//	Debug.Log("target is " + screenPos.x + " pixels from the left");
-			/////
+
 			selection.SetActive (false);
 			float x = Input.mousePosition.x;
 			float y = Input.mousePosition.y;
@@ -634,6 +766,8 @@ public class GameController : MonoBehaviour{
 
 
 	void Start (){
+		moveLogText.text = "";
+		threadResults = new int[numberOfThreads][];
 		blackTurn.SetActive (false);
 		whiteTurn.SetActive (true);
 		players = new int[] { 0, 0 };
