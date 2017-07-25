@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -59,6 +60,9 @@ public class GameController : MonoBehaviour{
 	private List<string> moveLog = new List<string>();
 
 
+	private bool threadComplete = false;
+	static System.Random rnd = new System.Random();
+
 	// castling represented by moving king across two
 	private bool castleWhiteLeft = true, castleWhiteRight = true, castleBlackLeft = true, castleBlackRight = true;
 
@@ -74,6 +78,7 @@ public class GameController : MonoBehaviour{
 		if (numberOfMoves % 2 == 0) {
 			moveText = ((numberOfMoves + 2) / 2).ToString() + ": " + moveText;
 		}
+		Debug.Log (moveText);
 		moveLog.Add (moveText);
 		if (moveLog.Count >= 9) {
 			moveLog.RemoveAt (0);
@@ -107,8 +112,16 @@ public class GameController : MonoBehaviour{
 	}
 
 	void Update(){
+		if (threadComplete) {
+			threadComplete = false;
+			CompleteComp ();
+		}
+
 		if (goToComputer) {
 			goToComputer = false;
+			if (numberOfMoves > 200 && players[0] == 1 && players[1] == 1) {
+				return;
+			}
 			CompTurn ();
 		}
 		if (Input.GetMouseButtonUp(0) && !gameDone) {
@@ -116,6 +129,7 @@ public class GameController : MonoBehaviour{
 		}
 		UpdateSelection ();
 		if (computerMove) {
+			computerMove = false;
 			goToComputer = true;
 		}
 	}
@@ -276,29 +290,35 @@ public class GameController : MonoBehaviour{
 		}
 		return total;
 	}
+	// new
+	int[] moveToMake;
 
 	private void CompTurn(){
 		
-		int[] moveData;
-		computerMove = false;
+		new Thread(() => CompStart()) { IsBackground = true }.Start();
+	}
+
+	private void CompStart(){
+
+		int[] moveData = new int[] {-1,-1,-1,-1,0};
+
 		if (numberOfMoves < 2) {
 			moveData = new int[] { 4, 1 + 5 * gameTurn, 4, 3 + gameTurn, 0 };
 			int[,] boardClone = (int[,])boardData.Clone ();
-			boardClone = MakeMove (boardClone, new int[] {4, 1 + 5 * gameTurn}, new int[] {4, 3+gameTurn}, 6*gameTurn, -1);
+			boardClone = MakeMove (boardClone, new int[] { 4, 1 + 5 * gameTurn }, new int[] { 4, 3 + gameTurn }, 6 * gameTurn, -1);
 			for (int xStart = 0; xStart < 8; xStart++) {
 				for (int yStart = 0; yStart < 8; yStart++) {
 					int startPieceIndex = boardClone [xStart, yStart];
-					if (startPieceIndex > -1 + 6 * (1-gameTurn) && startPieceIndex < 6 + 6 * (1-gameTurn)) {
-						if (ValidMove(boardClone, new int[] {xStart,yStart}, new int[] {4, 3+gameTurn},startPieceIndex, 6*gameTurn, (1-gameTurn))){
+					if (startPieceIndex > -1 + 6 * (1 - gameTurn) && startPieceIndex < 6 + 6 * (1 - gameTurn)) {
+						if (ValidMove (boardClone, new int[] { xStart, yStart }, new int[] { 4, 3 + gameTurn }, startPieceIndex, 6 * gameTurn, (1 - gameTurn))) {
 							moveData = new int[] { 3, 1 + 5 * gameTurn, 3, 3 + gameTurn, 0 };
 							break;
 						}
 					}
 				}
 			}
-		
 		} else {
-		// thishasbeenchanged
+			// thishasbeenchanged
 //			moveData = CompSearch (boardData, gameTurn, maxDepth, 1, 0, staleList);
 			if (gameTurn == 0) {
 				moveData = AlphaBetaMax (boardData, gameTurn, maxDepth, 1, 0, staleList, -100000, 100000);
@@ -306,7 +326,14 @@ public class GameController : MonoBehaviour{
 				moveData = AlphaBetaMin (boardData, gameTurn, maxDepth, 1, 0, staleList, -100000, 100000);
 			}
 		}
-//		moveData = CompSearch (boardData, gameTurn, 4, 1, 0);
+		moveToMake = moveData;
+		threadComplete = true;
+		return;
+	}
+
+	private void CompleteComp(){
+		int[] moveData = moveToMake;
+
 		if (moveData [0] == -1) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
@@ -317,6 +344,9 @@ public class GameController : MonoBehaviour{
 		endTile = new int[] { moveData [2], moveData [3] };
 		startPieceIndex = boardData [startTile [0], startTile [1]];
 		endPieceIndex = boardData [endTile [0], endTile [1]];
+		if (!ValidMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex, gameTurn)) {
+			Debug.Log ("fault");
+		}
 		CastleBools (startTile, endTile);
 		gameTurn = 1 - gameTurn;
 		UpdateMoveLog(new int[] {startTile[0],startTile[1], endTile[0],endTile[1]});
@@ -423,7 +453,8 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		}
-		return bestMove[Random.Range (0, bestMove.Count)];
+		int r = rnd.Next(bestMove.Count);
+		return bestMove[r];
 	}
 
 
@@ -491,7 +522,8 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		}
-		return bestMove[Random.Range (0, bestMove.Count)];
+		int r = rnd.Next(bestMove.Count);
+		return bestMove[r];
 	}
 
 
@@ -879,7 +911,7 @@ public class GameController : MonoBehaviour{
 		return piecePrefabs [pieceIndex];
 	}
 
-	private bool ValidMove (int[,] board, int[] fromTile, int[] toTile,
+	private  bool ValidMove (int[,] board, int[] fromTile, int[] toTile,
 		int fromPieceIndex, int toPieceIndex, int currentTurn){
 		// need to add stepping through possible interuptions
 		int dx = toTile[0] - fromTile[0];
