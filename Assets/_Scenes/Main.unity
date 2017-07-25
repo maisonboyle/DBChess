@@ -190,18 +190,18 @@ MonoBehaviour:
   - {fileID: 1881366341526506, guid: 5339fe1dd4a1e694fad9dee2b8ee0235, type: 2}
   - {fileID: 1744412699670686, guid: 9aebecc73eb383c479e02bb0e8684de9, type: 2}
   twoDimensionPieces:
-  - {fileID: 1118731069781786, guid: 7aaa50506cca1e447a69c997a90783fb, type: 2}
-  - {fileID: 1561496212768366, guid: ae5daac3ca7900345af1ef150a0c4403, type: 2}
-  - {fileID: 1305690875497360, guid: 3f04a1c779de6944dbe344cc995f4d03, type: 2}
-  - {fileID: 1524038679710226, guid: 5df44f560bd133e47b1001fdc44dda24, type: 2}
-  - {fileID: 1753936264092296, guid: 35f0314312e604442a276b530d54468b, type: 2}
-  - {fileID: 1969988095293282, guid: ff1a743e810143d478076b0ca98a308a, type: 2}
-  - {fileID: 1461540430506864, guid: d67265dd0d6c46444b28de6e31d98f30, type: 2}
-  - {fileID: 1538889748248070, guid: 3e5809af5ea56964e9471e9d6f6f5f2f, type: 2}
-  - {fileID: 1743986994102484, guid: 22fecd7be81aa79428e69e46c35ad9ec, type: 2}
-  - {fileID: 1850575026241254, guid: f94b3fa8b2aa2ff438595fbb92a8ca3b, type: 2}
-  - {fileID: 1592291382124440, guid: 2fdff412a43ef2c478425309d7b88ee5, type: 2}
-  - {fileID: 1131273390294790, guid: 0feed1e3283a82a41b75a911e5d1d96a, type: 2}
+  - {fileID: 1774397270947938, guid: 80a37b571da67f949ab44f09197d7621, type: 2}
+  - {fileID: 1125628286316856, guid: 4a6c9c69e6b21a448813e3cfce216926, type: 2}
+  - {fileID: 1268611417816214, guid: 96f0ec1c76b0309468a1bcdd9b14b159, type: 2}
+  - {fileID: 1898187932368362, guid: 815a956667d08bb4697021f87429763f, type: 2}
+  - {fileID: 1952497218947388, guid: f8eb449cb7ddfcc40930e54b62a8bffb, type: 2}
+  - {fileID: 1974693853809520, guid: d2fd7a99a4487df4daa25af09e450877, type: 2}
+  - {fileID: 1225902044415804, guid: fd00d9939827ab242bc9733e6c6cb33c, type: 2}
+  - {fileID: 1317595861519634, guid: 1a639c9de2262b34b8810d477d3ae92a, type: 2}
+  - {fileID: 1795298180103656, guid: 9c3ca5aa894cb1f4c80b91b15f8f908e, type: 2}
+  - {fileID: 1420886113738866, guid: 53739c7995d5a9e4aa84020c827f6062, type: 2}
+  - {fileID: 1283437287365628, guid: c797bd9dafaa84746bfbe75216d25de1, type: 2}
+  - {fileID: 1651900285500474, guid: 8ec5b4095ea9998429ae04ca6de7c0b4, type: 2}
   camera: {fileID: 0}
   selection: {fileID: 2029096755}
   twoSelection: {fileID: 1677568352}
