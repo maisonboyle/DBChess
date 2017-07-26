@@ -281,7 +281,7 @@ MonoBehaviour:
     m_VAllowExceedBaseRangeMax: 1
     m_ScaleWithWindow: 0
     m_HSlider: 0
-    m_VSlider: 0
+    m_VSlider: 1
     m_IgnoreScrollWheelUntilClicked: 0
     m_EnableMouseInput: 1
     m_EnableSliderZoom: 0
@@ -293,18 +293,18 @@ MonoBehaviour:
       y: 17
       width: 681
       height: 637
-    m_Scale: {x: 0.33177084, y: 0.33177084}
-    m_Translation: {x: 340.5, y: 318.5}
+    m_Scale: {x: 0.33370858, y: 0.33370858}
+    m_Translation: {x: 340.5, y: 316.63974}
     m_MarginLeft: 0
     m_MarginRight: 0
     m_MarginTop: 0
     m_MarginBottom: 0
     m_LastShownAreaInsideMargins:
       serializedVersion: 2
-      x: -1026.3108
-      y: -960
-      width: 2052.6216
-      height: 1920
+      x: -1020.3513
+      y: -948.8511
+      width: 2040.7026
+      height: 1908.8511
     m_MinimalGUI: 1
   m_defaultScale: 1
   m_TargetTexture: {fileID: 0}
@@ -515,10 +515,10 @@ MonoBehaviour:
       m_Icon: {fileID: 0}
       m_ResourceFile: 
   m_AssetTreeState:
-    scrollPos: {x: 0, y: 120}
+    scrollPos: {x: 0, y: 76}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 000000001026000048260000c8260000fe260000
+    m_ExpandedIDs: 0000000010260000c8260000fe260000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 

@@ -65,6 +65,9 @@ public class GameController : MonoBehaviour{
 
 	// castling represented by moving king across two
 	private bool castleWhiteLeft = true, castleWhiteRight = true, castleBlackLeft = true, castleBlackRight = true;
+	private int[] basicValues = new int[] {1,3,3,5,9,0,1,3,3,5,9,0};
+	bool theEndGame = false;
+
 
 	private void UpdateMoveLog(int[] move){
 		string moveText;
@@ -78,7 +81,6 @@ public class GameController : MonoBehaviour{
 		if (numberOfMoves % 2 == 0) {
 			moveText = ((numberOfMoves + 2) / 2).ToString() + ": " + moveText;
 		}
-		Debug.Log (moveText);
 		moveLog.Add (moveText);
 		if (moveLog.Count >= 9) {
 			moveLog.RemoveAt (0);
@@ -93,7 +95,25 @@ public class GameController : MonoBehaviour{
 		for (int i = moveLog.Count / 2; i > 0; i--) {
 			moveLogText.text += moveLog [2 * i - 2] + "  " + moveLog [2 * i - 1] + "\n";
 		}
-
+		if (!theEndGame) {
+			int blackSum = 0;
+			int whiteSum = 0;
+			for (int x = 0; x < 8; x++) {
+				for (int y = 0; y < 8; y++) {
+					if (boardData [x, y] != -1) {
+						if (boardData [x, y] < 6) {
+							whiteSum += basicValues [boardData [x, y]];
+						} else {
+							blackSum += basicValues [boardData [x, y]];
+						}
+					}
+				}
+			}
+			if (blackSum < 14 && whiteSum < 14) {
+				pieceVals.EnterEndGame ();
+				theEndGame = true;
+			}
+		}
 	}
 
 	public void changeDimension(){
@@ -300,7 +320,7 @@ public class GameController : MonoBehaviour{
 
 	private void CompStart(){
 
-		int[] moveData = new int[] {-1,-1,-1,-1,0};
+		int[] moveData;
 
 		if (numberOfMoves < 2) {
 			moveData = new int[] { 4, 1 + 5 * gameTurn, 4, 3 + gameTurn, 0 };
@@ -344,9 +364,6 @@ public class GameController : MonoBehaviour{
 		endTile = new int[] { moveData [2], moveData [3] };
 		startPieceIndex = boardData [startTile [0], startTile [1]];
 		endPieceIndex = boardData [endTile [0], endTile [1]];
-		if (!ValidMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex, gameTurn)) {
-			Debug.Log ("fault");
-		}
 		CastleBools (startTile, endTile);
 		gameTurn = 1 - gameTurn;
 		UpdateMoveLog(new int[] {startTile[0],startTile[1], endTile[0],endTile[1]});
@@ -377,6 +394,7 @@ public class GameController : MonoBehaviour{
 			gameDone = true;
 			gameOverButton.SetActive (true);
 			Invoke ("Ending", 4.0f);
+			return;
 		}
 		boardData = MakeMove (boardData, startTile, endTile, startPieceIndex, endPieceIndex);
 		if (InCheckmate (boardData, gameTurn)) {
@@ -416,8 +434,15 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		}
+		if (validMoves.Count == 0) {
+			if (InCheck(board,turn, FindKing(board,turn))){
+				return new int[] { -1, -1, -1, -1, -10000 + 20000 * turn };
+			} else{
+				return new int[] { -1, -1, -1, -1, 0};
+			}
+		}
 		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -10000 + 20000 * turn } };
-		if (currentDepth == 1 && validMoves.Count != 0) {
+		if (currentDepth == 1) {
 			bestMove = new List<int[]> { new int[] { validMoves[0][0], validMoves[0][1], validMoves[0][2], validMoves[0][3], -10000 + 20000 * turn }};
 		}
 		foreach (int[] move in validMoves){
@@ -483,6 +508,13 @@ public class GameController : MonoBehaviour{
 						}
 					}
 				}
+			}
+		}
+		if (validMoves.Count == 0) {
+			if (InCheck(board,turn, FindKing(board,turn))){
+				return new int[] { -1, -1, -1, -1, -10000 + 20000 * turn };
+			} else{
+				return new int[] { -1, -1, -1, -1, 0};
 			}
 		}
 		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -10000 + 20000 * turn } };
