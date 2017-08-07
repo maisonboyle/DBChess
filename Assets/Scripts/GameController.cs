@@ -70,6 +70,7 @@ public class GameController : MonoBehaviour{
 
 
 	private void UpdateMoveLog(int[] move){
+		
 		string moveText;
 		if (move [0] - move [2] == 2 && boardData [move [0], move [1]] % 6 == 5) {
 			 moveText = "O-O-O";
@@ -338,13 +339,8 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		} else {
-			// thishasbeenchanged
-//			moveData = CompSearch (boardData, gameTurn, maxDepth, 1, 0, staleList);
-			if (gameTurn == 0) {
-				moveData = AlphaBetaMax (boardData, gameTurn, maxDepth, 1, 0, staleList, -100000, 100000);
-			} else {
-				moveData = AlphaBetaMin (boardData, gameTurn, maxDepth, 1, 0, staleList, -100000, 100000);
-			}
+			moveData = NegaSearch(boardData, gameTurn, maxDepth, 0, staleList, -100000, 100000, false, false);
+
 		}
 		moveToMake = moveData;
 		threadComplete = true;
@@ -405,10 +401,16 @@ public class GameController : MonoBehaviour{
 			computerMove = true;
 		}
 	}
-
-	// Experimental alpha beta search
-	private int[] AlphaBetaMin(int[,] board, int turn, int maxDepth, int currentDepth, int baseValue, int[] staleloc, int lowerCutoff, int upperCutOff){
-		if (currentDepth == 1) {
+	private int[] NegaSearch(int[,] board, int turn, int depthLeft, int baseValue, int[] staleloc, int lowerCutoff, int upperCutOff, bool justCaptured, bool boosted){
+		if (depthLeft == 0) {
+			if (justCaptured && !boosted) {
+				depthLeft += 2;
+				boosted = true;
+			} else {
+				return new int[] { -1, -1, -1, -1, baseValue * (1 - 2 * turn) };
+			}
+		}
+		if (depthLeft == maxDepth) {
 			baseValue = pieceVals.FullEvaluate (board);
 		}
 		// find moves
@@ -423,9 +425,9 @@ public class GameController : MonoBehaviour{
 							if (endPieceIndex < 6 * turn || endPieceIndex > 5 + 6 * turn) {
 								if (ValidMove (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex, turn)) {
 									if (endPieceIndex == -1) {
-										validMoves.Add (new int[] { xStart, yStart, xEnd, yEnd });
+										validMoves.Add (new int[] { xStart, yStart, xEnd, yEnd, 0});
 									} else {
-										validMoves.Insert (0, new int[] { xStart, yStart, xEnd, yEnd });
+										validMoves.Insert (0, new int[] { xStart, yStart, xEnd, yEnd, 1});
 									}
 								}
 							}
@@ -436,204 +438,57 @@ public class GameController : MonoBehaviour{
 		}
 		if (validMoves.Count == 0) {
 			if (InCheck(board,turn, FindKing(board,turn))){
-				return new int[] { -1, -1, -1, -1, -10000 + 20000 * turn };
+				return new int[] { -1, -1, -1, -1, -10000 };
 			} else{
 				return new int[] { -1, -1, -1, -1, 0};
 			}
 		}
-		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -10000 + 20000 * turn } };
-		if (currentDepth == 1) {
-			bestMove = new List<int[]> { new int[] { validMoves[0][0], validMoves[0][1], validMoves[0][2], validMoves[0][3], -10000 + 20000 * turn }};
+		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -10000} };
+		if (depthLeft == maxDepth && validMoves.Count != 0) {
+			bestMove = new List<int[]> { new int[] { validMoves[0][0], validMoves[0][1], validMoves[0][2], validMoves[0][3], -10000} };
 		}
 		foreach (int[] move in validMoves){
-			int xStart = move [0], yStart = move [1], xEnd = move [2], yEnd = move [3]; 
+			int xStart = move [0], yStart = move [1], xEnd = move [2], yEnd = move [3];
 			int[,] boardClone = (int[,])board.Clone ();
 			boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, boardClone[xStart,yStart], boardClone[xEnd,yEnd]);
 			int[] kingPos = FindKing (boardClone, turn);
 			if (!InCheck (boardClone, turn, kingPos)) {
+				bool extendDepth = false;
+				if (move [4] == 1) {
+					extendDepth = true;
+				}
 				// actually a valid move
 				// find true value of this branch
-				int testValue = baseValue + pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd });
+				int testValue = baseValue + (pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }));
 				if (isStale (staleloc)) {
 					testValue = 0;
-				} else if (currentDepth == maxDepth) {
+				} else if (depthLeft == 1) {
 					kingPos = FindKing (boardClone, 1 - turn);
 					if (InCheck (boardClone, 1 - turn, kingPos)) {
-						testValue += 5 - 10 * turn;
+						testValue += 5;
 						if (InCheckmate (boardClone, 1 - turn)) {
-							testValue += 4000 - 8000 * turn;
+							testValue += 4000;
 						}
 					}
-				} else {
-					// need to sort out cutoff
-					testValue = AlphaBetaMax (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}), lowerCutoff, upperCutOff)[4];
 				}
-				if (testValue <= lowerCutoff) {
-					return new int[] { move [0], move [1], move [2], move [3], testValue };
-				}if (testValue < upperCutOff) {
-					upperCutOff = testValue;
-					bestMove = new List<int[]> {new int[] { move [0], move [1], move [2], move [3], testValue }};
-				} else if (testValue == upperCutOff && currentDepth == 1) {
-					bestMove.Add(new int[] { move [0], move [1], move [2], move [3], testValue});
-				}
-			}
-		}
-		int r = rnd.Next(bestMove.Count);
-		return bestMove[r];
-	}
+				testValue = -NegaSearch (boardClone,1-turn, depthLeft - 1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}), -upperCutOff, -lowerCutoff, extendDepth, boosted)[4];
 
-
-	private int[] AlphaBetaMax(int[,] board, int turn, int maxDepth, int currentDepth, int baseValue, int[] staleloc, int lowerCutoff, int upperCutOff){
-		if (currentDepth == 1) {
-			baseValue = pieceVals.FullEvaluate (board);
-		}
-		// find moves
-		List<int[]> validMoves = new List<int[]> ();
-		for (int xStart = 0; xStart < 8; xStart++) {
-			for (int yStart = 0; yStart < 8; yStart++) {
-				int startPieceIndex = board [xStart, yStart];
-				if (startPieceIndex > -1 + 6 * turn && startPieceIndex < 6 + 6 * turn) {
-					for (int xEnd = 0; xEnd < 8; xEnd++) {
-						for (int yEnd = 0; yEnd < 8; yEnd++) {
-							int endPieceIndex = board [xEnd, yEnd];
-							if (endPieceIndex < 6 * turn || endPieceIndex > 5 + 6 * turn) {
-								if (ValidMove (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex, turn)) {
-									if (endPieceIndex == -1) {
-										validMoves.Add (new int[] { xStart, yStart, xEnd, yEnd });
-									} else {
-										validMoves.Insert (0, new int[] { xStart, yStart, xEnd, yEnd });
-									}
-								}
-							}
-						}
-					}
+				if (testValue > bestMove[0][4]) {
+					bestMove = new List<int[]> { new int[] { move [0], move [1], move [2], move [3], testValue } };
 				}
-			}
-		}
-		if (validMoves.Count == 0) {
-			if (InCheck(board,turn, FindKing(board,turn))){
-				return new int[] { -1, -1, -1, -1, -10000 + 20000 * turn };
-			} else{
-				return new int[] { -1, -1, -1, -1, 0};
-			}
-		}
-		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -10000 + 20000 * turn } };
-		if (currentDepth == 1 && validMoves.Count != 0) {
-			bestMove = new List<int[]> { new int[] { validMoves[0][0], validMoves[0][1], validMoves[0][2], validMoves[0][3], -10000 + 20000 * turn } };
-		}
-		foreach (int[] move in validMoves){
-			int xStart = move [0], yStart = move [1], xEnd = move [2], yEnd = move [3]; 
-			int[,] boardClone = (int[,])board.Clone ();
-			boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, boardClone[xStart,yStart], boardClone[xEnd,yEnd]);
-			int[] kingPos = FindKing (boardClone, turn);
-			if (!InCheck (boardClone, turn, kingPos)) {
-				// actually a valid move
-				// find true value of this branch
-				int testValue = baseValue + pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd });
-				if (isStale (staleloc)) {
-					testValue = 0;
-				} else if (currentDepth == maxDepth) {
-					kingPos = FindKing (boardClone, 1 - turn);
-					if (InCheck (boardClone, 1 - turn, kingPos)) {
-						testValue += 5 - 10 * turn;
-						if (InCheckmate (boardClone, 1 - turn)) {
-							testValue += 4000 - 8000 * turn;
-						}
-					}
-				} else {
-					// need to sort out cutoff
-					testValue = AlphaBetaMin (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}), lowerCutoff, upperCutOff)[4];
-				}
-				if (testValue >= upperCutOff) {
-					return new int[] {move [0], move [1], move [2], move [3], testValue}; 
-				}if (testValue > lowerCutoff) {
+				if (testValue > lowerCutoff) {
 					lowerCutoff = testValue;
 					bestMove = new List<int[]> {new int[] { move [0], move [1], move [2], move [3], testValue }};
-				} else if (testValue == lowerCutoff && currentDepth == 1) {
+				} else if (testValue == lowerCutoff && depthLeft == maxDepth) {
 					bestMove.Add(new int[] { move [0], move [1], move [2], move [3], testValue});
+				}
+				if (lowerCutoff >= upperCutOff) {
+					break;
 				}
 			}
 		}
 		int r = rnd.Next(bestMove.Count);
 		return bestMove[r];
-	}
-
-
-	//thishasbeenchanged
-	private int[] CompSearch(int[,] board, int turn, int maxDepth, int currentDepth, int value, int[] staleloc){
-		if (currentDepth == 1) {
-			value = pieceVals.FullEvaluate (board);
-		}
-		// bestmove format xstart, ystart, xend, yend, value
-		List<int[]> validMoves = new List<int[]> ();
-		List<int[]> bestMove = new List<int[]> { new int[] { -1, -1, -1, -1, -100000 + 200000 * turn } };
-		for (int xStart = 0; xStart < 8; xStart++) {
-			for (int yStart = 0; yStart < 8; yStart++) {
-				int startPieceIndex = board [xStart, yStart];
-				if (startPieceIndex > -1 + 6 * turn && startPieceIndex < 6 + 6 * turn) {
-					for (int xEnd = 0; xEnd < 8; xEnd++) {
-						for (int yEnd = 0; yEnd < 8; yEnd++) {
-							int endPieceIndex = board [xEnd, yEnd];
-							if (endPieceIndex < 6 * turn || endPieceIndex > 5 + 6 * turn) {
-								if (ValidMove (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, startPieceIndex, endPieceIndex, turn)) {
-									if (endPieceIndex == -1) {
-										validMoves.Add (new int[] { xStart, yStart, xEnd, yEnd });
-									} else {
-										validMoves.Insert (0, new int[] { xStart, yStart, xEnd, yEnd });
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		foreach (int[] move in validMoves){
-			int xStart = move [0], yStart = move [1], xEnd = move [2], yEnd = move [3]; 
-			int[,] boardClone = (int[,])board.Clone ();
-			boardClone = MakeMove (boardClone, new int[] { xStart, yStart }, new int[] { xEnd, yEnd }, boardClone[xStart,yStart], boardClone[xEnd,yEnd]);
-			int[] kingPos = FindKing (boardClone, turn);
-			if (!InCheck (boardClone, turn, kingPos)) {
-				int testValue = value + pieceVals.AdjustScore (board, new int[] { xStart, yStart }, new int[] { xEnd, yEnd });
-
-				bool cont = true;
-				// test performance when commented out
-				if ((turn == 0 && testValue < bestMove [0][4]) || (turn == 1 && testValue > bestMove [0][4])) {
-					cont = false;
-				}
-				// thishasbeenchanged
-				if (isStale (staleloc)) {
-					testValue = 0;
-				} else if (currentDepth == maxDepth) {
-
-					kingPos = FindKing (boardClone, 1 - turn);
-					if (InCheck (boardClone, 1 - turn, kingPos)) {
-						testValue += 5 - 10 * turn;
-						if (InCheckmate (boardClone, 1 - turn)) {
-							testValue += 4000 - 8000 * turn;
-						}
-					}
-				}
-
-				if (currentDepth != maxDepth && cont) {
-					testValue = CompSearch (boardClone,1-turn,maxDepth, currentDepth+1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}))[4];
-				}
-
-				if (turn == 1) {
-					if (testValue < bestMove [0] [4] || bestMove[0][4] == 100000) {
-						bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
-					} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
-						bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
-					}
-				} else if (testValue > bestMove [0] [4] || bestMove[0][4] == -100000) {
-					bestMove = new List<int[]> { new int[] { xStart, yStart, xEnd, yEnd, testValue } };
-				} else if (testValue == bestMove [0] [4] && currentDepth == 1) {
-					bestMove.Add (new int[] { xStart, yStart, xEnd, yEnd, testValue });
-				}
-
-			}
-		}
-		return bestMove[Random.Range (0, bestMove.Count)];
 	}
 
 
@@ -673,10 +528,12 @@ public class GameController : MonoBehaviour{
 	}
 
 	private bool InCheck(int[,] board, int turnToTest, int[] kingPos){
+		int attackIndex;
 		for (int x = 0; x < 8; x++) {
 			for (int y = 0; y < 8; y++) {
-				if (board[x,y] > 5-6*turnToTest && board[x,y] < 12-6*turnToTest){
-					if (ValidMove(board, new int[] {x,y}, kingPos, board[x,y], 5+6*turnToTest, 1-turnToTest)){
+				attackIndex = board [x, y];
+				if (attackIndex > 5-6*turnToTest && attackIndex < 12-6*turnToTest){
+					if (ValidMove(board, new int[] {x,y}, kingPos, attackIndex, 5+6*turnToTest, 1-turnToTest)){
 						return true;
 					}
 				}
