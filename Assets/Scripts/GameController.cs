@@ -403,12 +403,9 @@ public class GameController : MonoBehaviour{
 	}
 	private int[] NegaSearch(int[,] board, int turn, int depthLeft, int baseValue, int[] staleloc, int lowerCutoff, int upperCutOff, bool justCaptured, bool boosted){
 		if (depthLeft == 0) {
-			if (justCaptured && !boosted) {
-				depthLeft += 2;
-				boosted = true;
-			} else {
+			
 				return new int[] { -1, -1, -1, -1, baseValue * (1 - 2 * turn) };
-			}
+
 		}
 		if (depthLeft == maxDepth) {
 			baseValue = pieceVals.FullEvaluate (board);
@@ -471,7 +468,7 @@ public class GameController : MonoBehaviour{
 						}
 					}
 				}
-				testValue = -NegaSearch (boardClone,1-turn, depthLeft - 1,testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}), -upperCutOff, -lowerCutoff, extendDepth, boosted)[4];
+				testValue = -NegaSearch (boardClone,1-turn, depthLeft - 1, testValue, updateStale(staleloc, new int[] {xStart,yStart,xEnd,yEnd}), -upperCutOff, -lowerCutoff, extendDepth, boosted)[4];
 
 				if (testValue > bestMove[0][4]) {
 					bestMove = new List<int[]> { new int[] { move [0], move [1], move [2], move [3], testValue } };
