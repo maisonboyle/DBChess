@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
-using UnityEngine.Profiling;
 
 public class GameController : MonoBehaviour{
 
@@ -1353,7 +1352,7 @@ public class GameController : MonoBehaviour{
 			switchTurn [12] ^= 1;
 			if (kingBitBoard == 0x10 && !CanTakeKing(switchTurn)) {
 				// castling left
-				if ((bitboards [3] & 0x1)!=0 && ((whitePieces | blackPieces) & 0xe)==0 && (gameState & 0x8)==0x8) {
+				if ((bitboards [3] & 0x1)!=0 && (occupied & 0xe)==0 && (gameState & 0x8)==0x8) {
 					ulong[] boardClone = (ulong[])bitboards.Clone ();
 					MakeMove (boardClone, 4 << 17 | 3 << 11 | 5 << 7 | 7 << 4);
 					if (!CanTakeKing (boardClone)) {
@@ -1361,7 +1360,7 @@ public class GameController : MonoBehaviour{
 					}
 				}
 				// castling right
-				if ((bitboards [3] & 0x80)!=0 && ((whitePieces | blackPieces) & 0x60)==0 && (gameState & 0x10)==0x10) {
+				if ((bitboards [3] & 0x80)!=0 && (occupied & 0x60)==0 && (gameState & 0x10)==0x10) {
 					ulong[] boardClone = (ulong[])bitboards.Clone ();
 					MakeMove (boardClone, 4 << 17 | 5 << 11 | 5 << 7 | 7 << 4);
 					if (!CanTakeKing (boardClone)) {
@@ -1747,14 +1746,14 @@ public class GameController : MonoBehaviour{
 			ulong[] switchTurn = (ulong[])bitboards.Clone ();
 			switchTurn [12] ^= 1;
 			if (kingBitBoard == 0x1000000000000000 && !CanTakeKing(switchTurn)) {
-				if ((bitboards [9] & unchecked((ulong)0x100000000000000)) != 0 && ((whitePieces | blackPieces) & unchecked((ulong)0xe00000000000000))==0  && (gameState & 0x2)==0x2) {
+				if ((bitboards [9] & unchecked((ulong)0x100000000000000)) != 0 && (occupied & unchecked((ulong)0xe00000000000000))==0  && (gameState & 0x2)==0x2) {
 					ulong[] boardClone = (ulong[])bitboards.Clone ();
 					MakeMove (boardClone, 60 << 17 | 59 << 11 | 13 << 7 | 7 << 4);
 					if (!CanTakeKing (boardClone)) {
 						captureMoves.Add ((60 << 17 | 58 << 11 | 13 << 7 | 7 << 4 | 8));
 					}
 				}
-				if ((bitboards [9] & unchecked((ulong)0x8000000000000000)) != 0 && ((whitePieces | blackPieces) & unchecked((ulong)0x6000000000000000))==0 && (gameState & 0x4)==0x4) {
+				if ((bitboards [9] & unchecked((ulong)0x8000000000000000)) != 0 && (occupied & unchecked((ulong)0x6000000000000000))==0 && (gameState & 0x4)==0x4) {
 					ulong[] boardClone = (ulong[])bitboards.Clone ();
 					MakeMove (boardClone, 60 << 17 | 61 << 11 | 13 << 7 | 7 << 4);
 					if (!CanTakeKing (boardClone)) {
@@ -2098,21 +2097,70 @@ public class GameController : MonoBehaviour{
 
 
 	private void UpdateMoveLog(uint move){
-		
+		ulong[] boardClone;
 		string moveText;
 		if ((move>>2)%2 == 1){
 			moveText = "O-O";
 		}else if ((move>>3)%2 == 1){
 			moveText = "O-O-O";
+
 		} else {
+			
+			boardClone = (ulong[])bitboardArray.Clone ();
+			boardClone [12] ^= 1;
+			UnMakeMove (boardClone, move);
+			List<uint> allMoves = allValidMoves (boardClone);
+
 			uint fromTile = move >> 17;
 			uint toTile = (move >> 11) & 0x3f;
-			moveText = across [fromTile % 8] + up [fromTile / 8] + across [toTile % 8] + up [toTile / 8];
+			uint pieceIndex = (move >> 7) & 0x7;
+			uint turn = (uint)bitboardArray [12] % 2;
+//			moveText = across [fromTile % 8] + up [fromTile / 8] + across [toTile % 8] + up [toTile / 8];
+
+			moveText = new string[] { "", "N", "B", "R", "Q", "K" } [pieceIndex];
+			if (pieceIndex != 0) {
+				foreach (uint otherMove in allMoves) {
+					// same piece move to
+					if ((otherMove & 0x1ffff) == (move & 0x1ffff) && move != otherMove) {
+						// same row
+						if ((otherMove >> 17) % 8 != fromTile % 8) {
+							moveText += across[fromTile % 8];
+							break;
+						} else {
+							moveText += up[fromTile / 8];
+							break;
+						}
+					}
+				}
+			}
+
+			if (((move >> 4) & 0x7) != 7) {
+				if (pieceIndex == 0) {
+					moveText = across[fromTile % 8];
+				}
+				moveText += "x";
+			}
+
+			moveText += across[toTile % 8];
+			moveText += up[toTile / 8];
+
+			if (pieceIndex == 0 && (toTile > 55 || toTile < 8)) {
+				if (move % 2 == 0) {
+					moveText += "=Q";
+				} else {
+					moveText += "=N";
+				}
+			}
 		}
-		ulong[] boardClone = (ulong[])bitboardArray.Clone ();
+
+		boardClone = (ulong[])bitboardArray.Clone ();
 		boardClone [12] ^= 1;
 		if (CanTakeKing (boardClone)) {
-			moveText = moveText + "+";
+			if (InCheckmate (bitboardArray)) {
+				moveText = moveText + "#";
+			} else {
+				moveText = moveText + "+";
+			}
 		}
 		if (numberOfMoves % 2 == 0) {
 			moveText = ((numberOfMoves + 2) / 2).ToString() + ": " + moveText;
@@ -2316,12 +2364,30 @@ public class GameController : MonoBehaviour{
 
 	}
 
-	private void CompStart(){
+//	System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
+	private void CompStart(){
+		
+		bestMoves = new List<uint> ();
 		uint move;
 		int turn = (int)bitboardArray[12]%2;
 
-		if (inOpening) {
+//		if (numberOfMoves == 0) {
+//			stopWatch.Start();
+//		}
+//		if (numberOfMoves == 12) {
+//			stopWatch.Stop();
+//			Debug.Log (stopWatch.ElapsedMilliseconds);
+//		}
+//		// THIS SECTION FOR TESTING ONLY
+//		if (turn == 0) {
+//			bestMoves = new List<uint> {new uint[] {0x108070,0x1eb870 ,0x290f0,0xca8f0,0x2ad8f0,0x18a070 }[numberOfMoves/2]};
+//			threadComplete = true; 
+//			return;
+//		}
+
+//		if (inOpening) {
+		if (inOpening){
 			int bestDepth = 0;
 			for (int i = 0; i < openingLines.Count; i++) {
 				if (openingLines [i].Length-numberOfMoves > bestDepth) {
@@ -2346,9 +2412,9 @@ public class GameController : MonoBehaviour{
 			bestMoves = new List<uint> { move };
 
 		} else {
-			NegaMax (bitboardArray, maxDepth, -100000, 100000,1);
-//			int[] prog = NegaSearch (bitboardArray, maxDepth, pieceVals.FullEvaluate ((ulong[])(bitboardArray.Clone ())) * (1 - 2 * turn), -100000, 100000, new int[] {0,0,0,0,0});
-//			Debug.Log (' ');
+//			NegaMax (bitboardArray, maxDepth, -100000, 100000,turn);
+			NegaMax (bitboardArray, maxDepth, -100000, 100000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn));
+
 //		Debug.Log (Perft(bitboardArray,maxDepth));
 //		Debug.Log (checksFound);
 //			// }
@@ -2359,7 +2425,6 @@ public class GameController : MonoBehaviour{
 	}
 
 	private void CompleteComp(){
-//		Debug.Log (endnodes);
 		if (bestMoves.Count == 0) {
 			gameDone = true;
 			gameOverButton.SetActive (true);
@@ -2368,12 +2433,9 @@ public class GameController : MonoBehaviour{
 		}else{
 			int index = rnd.Next (bestMoves.Count);
 			uint move = bestMoves[index];
-//			Debug.Log (move);
-			Debug.Log (' ');
-//			Debug.Log(pieceVals.AdjustScore(move));
+
 
 			MakeMove (bitboardArray, move);
-			// updatemovelog(move)
 			UpdateMoveLog (move);
 			if (whiteTurn.activeSelf) {
 				whiteTurn.SetActive (false);
@@ -2393,7 +2455,7 @@ public class GameController : MonoBehaviour{
 			}
 			int[] startTile = new int[] { (int)((move >> 17) % 8), (int)((move >> 17) / 8 )};
 			int[] endTile = new int[] { (int)(((move >> 11)&0x3f) % 8), (int)(((move >> 11)&0x3f) / 8 )};
-			int gameTurn = (int)(bitboardArray [12] % 2);
+			int gameTurn = 1-(int)(bitboardArray [12] % 2);
 
 			// drawing castling
 			if ((startPieceIndex == 5 || startPieceIndex == 11) && (startTile [0] - endTile [0]) * (startTile [0] - endTile [0]) == 4) {
@@ -2428,7 +2490,7 @@ public class GameController : MonoBehaviour{
 				Invoke ("Ending", 4.0f);
 
 				// need to change to } else
-			} else if (players [gameTurn] == 1) { 
+			} else if (players [1-gameTurn] == 1) { 
 				computerMove = true; 
 			}
 		}
@@ -2463,129 +2525,78 @@ public class GameController : MonoBehaviour{
 		}
 		return perft;
 	}
-	int endnodes = 0;
-	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn){
+
+
+	// THIS ONE ACTUALLY WORKS!!! --- BACKUP PROCESS ---
+//	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn){
+//		if (depthLeft == 0) {
+//			return (pieceVals.FullEvaluate ((ulong[])mainboard.Clone()) * (1-2*turn));
+//		}
+//		List<uint> childNodes = allValidMoves(mainboard);
+//		int bestValue = -1000000;
+//		if (depthLeft == maxDepth) {
+//			bestValue = -1000005;
+//		}
+//		foreach (uint childMove in childNodes) {
+//			ulong[] child = (ulong[])mainboard.Clone ();
+//			MakeMove (child, childMove);
+//			if (!CanTakeKing (child)) {
+//				int value = -NegaMax (child, depthLeft - 1, -beta, -alpha, 1 - turn);
+//
+//				if (value > bestValue) {
+//					bestValue = value;
+//					if (depthLeft == maxDepth) {
+//						bestMoves = new List<uint> { childMove };
+//					}
+//				}
+//				if (value > alpha) {
+//					alpha = value;
+//				}
+//				if (alpha >= beta){
+//					break;
+//				}
+//			}
+//		}
+//		return bestValue;
+//	}
+
+	// UNMAKE MOVE AND CARRIED SCORE
+	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue){
 		if (depthLeft == 0) {
-//			return pieceVals.FullEvaluate ((ulong[])mainboard.Clone()) * (1 - 2 * turn);
-//			endnodes += 1;
-			return -pieceVals.FullEvaluate ((ulong[])mainboard.Clone());
+			return baseValue;
 		}
 		List<uint> childNodes = allValidMoves(mainboard);
 		int bestValue = -1000000;
+		if (depthLeft == maxDepth) {
+			bestValue = -1000005;
+		}
+		ulong gameState = mainboard [12];
 		foreach (uint childMove in childNodes) {
-			ulong[] child = (ulong[])mainboard.Clone ();
-			MakeMove (child, childMove);
-			if (!CanTakeKing (child)) {
-				int value = -NegaMax (child, depthLeft - 1, -beta, -alpha, 1 - turn);
+			MakeMove (mainboard, childMove);
+			if (!CanTakeKing (mainboard)) {
+				int value = -NegaMax (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore(childMove));
+
 				if (value > bestValue) {
 					bestValue = value;
-
-
 					if (depthLeft == maxDepth) {
 						bestMoves = new List<uint> { childMove };
 					}
-
 				}
 				if (value > alpha) {
 					alpha = value;
 				}
-				if (alpha >= beta) {
+				if (alpha >= beta){
+					mainboard [12] = gameState;
+					UnMakeMove (mainboard, childMove);
 					break;
 				}
 			}
+			mainboard [12] = gameState;
+			UnMakeMove (mainboard, childMove);
 		}
+
 		return bestValue;
 	}
-
-	private int[] NegaSearch(ulong[] useboard, int depthLeft, int baseValue, int lowerCutoff, int upperCutOff, int[] progression){
-		ulong[] mainboard = (ulong[])useboard.Clone ();
-		uint theMove = 0;
-		if (depthLeft == 0) {
-			progression [4] = -baseValue;
-			return  progression;
-		}
-		if (depthLeft == maxDepth) {
-			bestMoves = new List<uint>();
-		}
-
-		// find moves
-		List<uint> validMoves = allValidMoves(mainboard);
-		if (validMoves.Count == 0) {
-			mainboard [12] ^= 1;
-			if (CanTakeKing(mainboard)){
-				progression [4] = 10000;
-				return  progression; 
-			} else{
-				progression [4] = 0;
-				return  progression; 
-			}
-		}
-
-		int bestValue = -100000; 
-		ulong gameState = mainboard [12];
-		foreach (uint move in validMoves){
-			ulong[] bitboards = (ulong[])mainboard.Clone ();
-
-//			ulong[] boardClone = (ulong[])bitboards.Clone ();
-//			boardClone = MakeMove (boardClone, move);
-			MakeMove(bitboards, move);
-			ulong[] testingboard = (ulong[])bitboards.Clone ();
-//			if(!CanTakeKing(boardClone)){
-			if (!CanTakeKing(testingboard)){
-				// actually a valid move
-				// find true value of this branch
-				int testValue = baseValue + pieceVals.AdjustScore (move);
-
-				// check score adjustment
-//				if (depthLeft == 1) {
-//					boardClone[12] ^= 1;
-//					if (CanTakeKing(boardClone)) {
-//						testValue += 5;
-//						boardClone[12] ^= 1;
-//							if (InCheckmate (boardClone)) {
-//							testValue += 4000;
-//							}
-//						}
-//					}
-
-//				testValue = -NegaSearch (boardClone, depthLeft - 1, -testValue,  -upperCutOff, -lowerCutoff);
-				progression = NegaSearch (bitboards, depthLeft - 1, -testValue,  -upperCutOff, -lowerCutoff, (int[])progression.Clone());
-				testValue = progression [4];
-//				testValue = -NegaSearch (bitboards, depthLeft - 1, -testValue,  -upperCutOff, -lowerCutoff);
-				if (depthLeft == maxDepth) {
-	//				Debug.Log ((move).ToString() + ":  " + (-testValue).ToString());
-					Debug.Log((move).ToString() + ":  " + progression[1].ToString() + ' ' + progression[2].ToString() + ' ' + progression[3].ToString() + ' '+(-testValue).ToString());
-				}
-				if (testValue > bestValue) {
-					theMove = move;
-					bestValue = testValue;
-					if (depthLeft == maxDepth) {
-						bestMoves = new List<uint> { move };
-					}
-				} else if (testValue == bestValue && depthLeft == maxDepth) {
-					bestMoves.Add(move);
-				}
-				
-				if (testValue > lowerCutoff) {
-					lowerCutoff = testValue;
-				} 
-				if (lowerCutoff >= upperCutOff) {
-					bitboards [12] = gameState;
-					UnMakeMove (bitboards, move);
-					break;
-				}
-			}
-			bitboards [12] = gameState;
-			UnMakeMove (bitboards, move);
-		}
-		if (depthLeft == maxDepth) {
-			Debug.Log (' ');
-		}
-		progression[maxDepth-depthLeft] = (int)theMove;
-		progression [4] = -bestValue;
-		return progression;
-	}
-
 
 
 
@@ -3224,7 +3235,6 @@ public class GameController : MonoBehaviour{
 
 
 	void Start (){
-
 
 		moveLogText.text = "";
 
