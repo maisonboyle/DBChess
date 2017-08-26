@@ -1211,7 +1211,7 @@ public class GameController : MonoBehaviour{
 
 	// initial game conditions
 //	private ushort gameState = 0x1e;
-	// { (white) pawn, knight, bishop, rook, queen, king, (black) pawn, knight ...} Gamestate added on as 12th item (0x1e)
+	// { (white) pawn, knight, bishop, rook, queen, king, (black) pawn, knight ...} Gamestate added on as 12th item (0x1e), hashvalue as 13th item
 
 	// STANDARD GAME SETUP: {0xff00, 0x42, 0x24, 0x81, 0x8, 0x10, 0xff000000000000, 0x4200000000000000, 0x2400000000000000,
 	//                      0x8100000000000000, 0x800000000000000, 0x1000000000000000, 0x1e}
@@ -1224,7 +1224,13 @@ public class GameController : MonoBehaviour{
 	//private ulong[] bitboardArray = new ulong[] {0x200005000, 0, 0, 0x2000000, 0, 0x100000000, 0x4080020000000, 0, 0, 0x8000000000, 0, 0x80000000, 0};
 
 	private ulong[] bitboardArray = new ulong[] {0xff00, 0x42, 0x24, 0x81, 0x8, 0x10,
-		0xff000000000000, 0x4200000000000000, 0x2400000000000000, 0x8100000000000000, 0x800000000000000, 0x1000000000000000, 0x1e};
+		0xff000000000000, 0x4200000000000000, 0x2400000000000000, 0x8100000000000000, 0x800000000000000, 0x1000000000000000, 0x1e, 0};
+
+
+
+	private ulong[][] hashValues = new ulong[12][];
+	private List<ulong> visitedHashes = new List<ulong> ();
+	private List<ulong> cantRepeat = new List<ulong> ();
 
 
 
@@ -2094,9 +2100,26 @@ public class GameController : MonoBehaviour{
 		return captureMoves;
 	}
 
-
+	private bool staleMate = false;
 
 	private void UpdateMoveLog(uint move){
+		// move made on bitboards, then this is called
+		// 50 move rule
+		if (bitboardArray [12] >= 0x64000) {
+			staleMate = true;
+		}
+
+		// HASH DATA
+		if (visitedHashes.Contains (bitboardArray [13])) {
+			if (cantRepeat.Contains (bitboardArray [13])) {
+				staleMate = true;
+			} else {
+				cantRepeat.Add (bitboardArray [13]);
+			}
+		} else {
+			visitedHashes.Add (bitboardArray [13]);
+		}
+
 		ulong[] boardClone;
 		string moveText;
 		if ((move>>2)%2 == 1){
@@ -2170,7 +2193,7 @@ public class GameController : MonoBehaviour{
 			moveLog.RemoveAt (0);
 			moveLog.RemoveAt (0);
 		}
-
+		Debug.Log (moveText);
 		moveLogText.text = "";
 
 		if (moveLog.Count % 2 == 1) {
@@ -2178,6 +2201,33 @@ public class GameController : MonoBehaviour{
 		}
 		for (int i = moveLog.Count / 2; i > 0; i--) {
 			moveLogText.text += moveLog [2 * i - 2] + "  " + moveLog [2 * i - 1] + "\n";
+		}
+
+		// ENDGAME
+
+		int whiteSum = 0;
+		int blackSum = 0;
+		uint lsbIndex;
+		for (int a = 0; a < 6; a++) {
+			ulong pieceBoard = bitboardArray [a];
+			while (pieceBoard != 0) {
+				whiteSum += basicValues [a];
+				pieceBoard &= pieceBoard - 1;
+			}
+		}
+		for (int a = 6; a < 12; a++) {
+			ulong pieceBoard = bitboardArray [a];
+			while (pieceBoard != 0) {
+				blackSum += basicValues [a];
+				pieceBoard &= pieceBoard - 1;
+			}
+		}
+		if (!theEndGame && blackSum < 14 && whiteSum < 14) {
+			pieceVals.EnterEndGame ();
+			theEndGame = true;
+		}
+		if (blackSum == 0 && whiteSum == 0) {
+			staleMate = true;
 		}
 //		if (!theEndGame) {
 //			int blackSum = 0;
@@ -2223,9 +2273,6 @@ public class GameController : MonoBehaviour{
 
 		if (goToComputer) {
 			goToComputer = false;
-			if (numberOfMoves > 200 && players[0] == 1 && players[1] == 1) {
-				return;
-			}
 			CompTurn ();
 		}
 		if (Input.GetMouseButtonUp(0) && !gameDone) {
@@ -2308,13 +2355,16 @@ public class GameController : MonoBehaviour{
 								VisualUpdate ((uint)((endTile [0] + endTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
 								GeneratePiece (endTile [0], endTile [1], 4 + 6 * gameTurn);
 							}
+
 							MakeMove (bitboardArray, move);
 							startTile = new int[] { -1, -1 };
 							UpdateMoveLog (move);
 							numberOfMoves += 1;
 							UpdateOpenings (move);
+
+
 							// avoiding stack
-							if (InCheckmate (bitboardArray)) {
+							if (InCheckmate (bitboardArray) || staleMate) {
 								gameDone = true;
 								gameOverButton.SetActive (true);
 								Invoke ("Ending", 4.0f);
@@ -2484,7 +2534,7 @@ public class GameController : MonoBehaviour{
 			numberOfMoves += 1;
 			UpdateOpenings (move);
 			// avoiding stack
-			if (InCheckmate (bitboardArray)) {
+			if (InCheckmate (bitboardArray) || staleMate) {
 				gameDone = true;
 				gameOverButton.SetActive (true);
 				Invoke ("Ending", 4.0f);
@@ -2562,6 +2612,7 @@ public class GameController : MonoBehaviour{
 
 	// UNMAKE MOVE AND CARRIED SCORE
 	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue){
+		bool canMove = false;
 		if (depthLeft == 0) {
 			return baseValue;
 		}
@@ -2574,8 +2625,13 @@ public class GameController : MonoBehaviour{
 		foreach (uint childMove in childNodes) {
 			MakeMove (mainboard, childMove);
 			if (!CanTakeKing (mainboard)) {
-				int value = -NegaMax (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore(childMove));
-
+				canMove = true;
+				int value;
+				if (cantRepeat.Contains (mainboard [13]) || mainboard[12] >= 0x64000) {
+					value = 0;
+				} else {
+					value = -NegaMax (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (childMove));
+				}
 				if (value > bestValue) {
 					bestValue = value;
 					if (depthLeft == maxDepth) {
@@ -2594,7 +2650,16 @@ public class GameController : MonoBehaviour{
 			mainboard [12] = gameState;
 			UnMakeMove (mainboard, childMove);
 		}
-
+		if (!canMove) {
+			mainboard [12] ^= 1;
+			if (CanTakeKing (mainboard)) {
+				mainboard [12] ^= 1;
+				return -1000000;
+			} else {
+				mainboard [12] ^= 1;
+				return 0;
+			}
+		}
 		return bestValue;
 	}
 
@@ -3013,17 +3078,31 @@ public class GameController : MonoBehaviour{
 		if ((move & 0xc) == 4) {
 			// king side
 			bitboards [3 + 6 * turn] ^= (ulong)0xa0 << 56 * (int)turn;
+			// HASH
+			bitboards[13] ^= hashValues[3 + 6 * turn][5+56*(int)turn];
+			bitboards[13] ^= hashValues[3 + 6 * turn][7+56*(int)turn];
 		} else if ((move & 0xc) == 8) {
 			// queen side
 			bitboards [3 + 6 * turn] ^= (ulong)0x9 << 56 * (int)turn;
+			// HASH
+			bitboards[13] ^= hashValues[3 + 6 * turn][56*(int)turn];
+			bitboards[13] ^= hashValues[3 + 6 * turn][3+56*(int)turn];
 		}
 		// possible captured piece
 		uint capturedType = ((move & 0x70) >> 4);
 		if (capturedType < 6) {
 			bitboards [capturedType + 6 - 6 * turn] ^= ((ulong)1 << (int)((move & 0x1f800) >> 11));
+			// HASH VALUE
+			bitboards[13] ^= hashValues[capturedType + 6 - 6 * turn][(int)((move & 0x1f800) >> 11)];
 		} else if (capturedType == 6) {
 			// en passant, correct pawn bitboard based on en passant tile
 			bitboards[6-6*turn] ^= (ulong)1<<(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn);
+			// HASH VALUE
+
+			// Yeah, these 5 lines may occasionally cause a crash but I honestly have no idea why as it works like 99% of the time, sorry.
+			bitboards [13] ^= hashValues [6 - 6 * turn] [(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn)];
+//          the line that originally caused the error, if you're looking here then the change was eviedntly useless.
+//			bitboards[13] ^= hashValues[6-6*turn][(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn)];
 		}
 		//swap end line pawns for promoted pieces
 		if (movingPieceIndex % 6 == 0) {
@@ -3037,41 +3116,73 @@ public class GameController : MonoBehaviour{
 		}
 
 		bitboards[movingPieceIndex] ^= ((ulong)1 << (int)((move & 0x7e0000)>>17)) + ((ulong)1 << (int)((move & 0x1f800)>>11));
+		// UPDATE HASH VALUE
+		bitboards[13] ^= hashValues[movingPieceIndex][(int)((move & 0x7e0000)>>17)];
+		bitboards[13] ^= hashValues[movingPieceIndex][(int)((move & 0x1f800)>>11)];
 
 		//return bitboards;
 	}
+
+
 	// private ulong[] MakeMove(ulong[] bitboards, uint move){
 	private void MakeMove(ulong[] bitboards, uint move){
+
+		bitboards [12] += 0x1000;
+
 		uint turn = ((move & 0x400) >> 10);
 		// move piece on its bitboard
 		uint movingPieceIndex = ((move & 0x380) >> 7) + 6 * turn;
 		bitboards[movingPieceIndex] ^= ((ulong)1 << (int)((move & 0x7e0000)>>17)) + ((ulong)1 << (int)((move & 0x1f800)>>11));
 
+		// UPDATE HASH VALUE
+		bitboards[13] ^= hashValues[movingPieceIndex][(int)((move & 0x7e0000)>>17)];
+		bitboards[13] ^= hashValues[movingPieceIndex][(int)((move & 0x1f800)>>11)];
+
 		//swap end line pawns for promoted pieces
-		if ((move & 0x3) == 0) {
-			// promote to queen
-			bitboards [4 + 6 * turn] ^= (bitboards [turn * 6] & 0xff000000000000ff);
-		} else {
-			bitboards [1 + 6 * turn] ^= (bitboards [turn * 6] & 0xff000000000000ff);
+		if (movingPieceIndex % 6 == 0) {
+			bitboards [12] &= 0xfff;
+			if ((move & 0x3) == 0) {
+				// promote to queen
+				bitboards [4 + 6 * turn] ^= (bitboards [turn * 6] & 0xff000000000000ff);
+			} else {
+				bitboards [1 + 6 * turn] ^= (bitboards [turn * 6] & 0xff000000000000ff);
+			}
+			bitboards [6 * turn] &= 0xffffffffffff00;
 		}
-		bitboards [6 * turn] &= 0xffffffffffff00;
+
 
 		// possible captured piece
 		uint capturedType = ((move & 0x70) >> 4);
 		if (capturedType < 6) {
+			bitboards [12] &= 0xfff;
 			bitboards [capturedType + 6 - 6 * turn] ^= ((ulong)1 << (int)((move & 0x1f800) >> 11));
+			// HASH VALUE
+			bitboards[13] ^= hashValues[capturedType + 6 - 6 * turn][(int)((move & 0x1f800) >> 11)];
+
 		} else if (capturedType == 6) {
+			bitboards [12] &= 0xfff;
 			// en passant, correct pawn bitboard based on en passant tile
 			bitboards[6-6*turn] ^= (ulong)1<<(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn);
+			// HASH VALUE
+			bitboards[13] ^= hashValues[6-6*turn][(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn)];
+
 		}
 
 		// castling
 		if ((move & 0xc) == 4) {
 			// king side
 			bitboards [3 + 6 * turn] ^= (ulong)0xa0 << 56 * (int)turn;
+			// HASH
+			bitboards[13] ^= hashValues[3 + 6 * turn][5+56*(int)turn];
+			bitboards[13] ^= hashValues[3 + 6 * turn][7+56*(int)turn];
+
 		} else if ((move & 0xc) == 8) {
 			// queen side
 			bitboards [3 + 6 * turn] ^= (ulong)0x9 << 56 * (int)turn;
+			// HASH
+			bitboards[13] ^= hashValues[3 + 6 * turn][56*(int)turn];
+			bitboards[13] ^= hashValues[3 + 6 * turn][3+56*(int)turn];
+
 		}
 
 		// set en passant tile, en passant allowed, castling variables
@@ -3081,14 +3192,14 @@ public class GameController : MonoBehaviour{
 		if ((bitboards [12] & 24) != 0) {
 			// king
 			if (bitboards [5] != 16) {
-				bitboards [12] &= 0xfe7;
+				bitboards [12] &= 0xfffe7;
 			} else { 
 				// rooks
 				if ((bitboards [3] & 1) == 0) {
-					bitboards [12] &= 0xff7;
+					bitboards [12] &= 0xffff7;
 				}
 				if ((bitboards [3] & 0x80) == 0) {
-					bitboards [12] &= 0xfef;
+					bitboards [12] &= 0xfffef;
 				}
 			}
 		}
@@ -3096,19 +3207,19 @@ public class GameController : MonoBehaviour{
 		if ((bitboards [12] & 6) != 0) {
 			// king
 			if (bitboards [11] != 0x1000000000000000) {
-				bitboards [12] &= 0xff9;
+				bitboards [12] &= 0xffff9;
 			} else { 
 				// rooks
 				if ((bitboards [9] & 0x100000000000000) == 0) {
-					bitboards [12] &= 0xffd;
+					bitboards [12] &= 0xffffd;
 				}
 				if ((bitboards [9] & 0x8000000000000000) == 0) {
-					bitboards [12] &= 0xffb;
+					bitboards [12] &= 0xffffb;
 				}
 			}
 		}
 		// reset en passant
-		bitboards [12] &= 0x1f;
+		bitboards [12] &= 0xff01f;
 		if ((move & 0x380) == 0 && (((move & 0x7e0000) >> 17) + 16 - 32 * turn) == ((move & 0x1f800) >> 11)) {
 			// en passant
 		
@@ -3116,8 +3227,11 @@ public class GameController : MonoBehaviour{
 			bitboards [12] |= 0x800 + (epTile << 5);
 		} 
 			
+
+
 		// change whos turn it is
 		bitboards [12] ^= 1;
+
 		// return bitboards;
 	}
 
@@ -3235,6 +3349,27 @@ public class GameController : MonoBehaviour{
 
 
 	void Start (){
+		ulong pt1, pt2;
+		// zobrist hash values
+		for (int a = 0; a < 12; a++) {
+			hashValues [a] = new ulong[64];
+			for (int b = 0; b < 64; b++) {
+				pt1 = (ulong)rnd.Next ();
+				pt2 = ((ulong)rnd.Next ())<<32;
+				hashValues [a][b] = pt2 + pt1;
+			}
+		}
+
+
+		for (int a = 0; a < 12; a++) {
+			ulong pieceBoard = bitboardArray [a];
+			while (pieceBoard != 0) {
+				uint lsbIndex = leastSigLookup [((pieceBoard & (~pieceBoard + 1)) * debruijnleast) >> 58];
+				bitboardArray [13] ^= hashValues [a] [lsbIndex];
+				pieceBoard &= pieceBoard - 1;
+			}
+		}
+		visitedHashes.Add (bitboardArray [13]);
 
 		moveLogText.text = "";
 

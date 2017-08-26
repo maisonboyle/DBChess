@@ -132,28 +132,6 @@ new int[]
 
 	ulong debruijnleast = 0x03f79d71b4cb0a89;
 
-//	public int FullEvaluate(ulong[] bitboards){
-//		value = 0;
-//		uint lsbIndex;
-//		for (int a = 0; a < 6; a++) {
-//			ulong pieceBoard = bitboards [a];
-//			while (pieceBoard != 0) {
-//				lsbIndex = leastSigLookup [(pieceBoard * debruijnleast) >> 58];
-//				value += pieceSquareTable [a] [lsbIndex] + baseValues [a];
-//				pieceBoard &= pieceBoard - 1;
-//			}
-//		}
-//		for (int a = 6; a < 12; a++) {
-//			ulong pieceBoard = bitboards [a];
-//			while (pieceBoard != 0) {
-//				lsbIndex = leastSigLookup [(pieceBoard * debruijnleast) >> 58];
-//				value -= pieceSquareTable [a] [lsbIndex] + baseValues [a - 6];
-//				pieceBoard &= pieceBoard - 1;
-//			}
-//		}
-//
-//		return value;
-//	}
 
 	public int FullEvaluate(ulong[] bitboards){
 		value = 0;
