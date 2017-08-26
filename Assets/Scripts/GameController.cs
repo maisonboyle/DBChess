@@ -1228,6 +1228,7 @@ public class GameController : MonoBehaviour{
 
 
 
+
 	private ulong[][] hashValues = new ulong[12][];
 	private List<ulong> visitedHashes = new List<ulong> ();
 	private List<ulong> cantRepeat = new List<ulong> ();
@@ -2102,7 +2103,7 @@ public class GameController : MonoBehaviour{
 
 	private bool staleMate = false;
 
-	private void UpdateMoveLog(uint move){
+	private void UpdateMoveLog(uint move, ulong gameState){
 		// move made on bitboards, then this is called
 		// 50 move rule
 		if (bitboardArray [12] >= 0x64000) {
@@ -2130,7 +2131,7 @@ public class GameController : MonoBehaviour{
 		} else {
 			
 			boardClone = (ulong[])bitboardArray.Clone ();
-			boardClone [12] ^= 1;
+			boardClone [12] = gameState;
 			UnMakeMove (boardClone, move);
 			List<uint> allMoves = allValidMoves (boardClone);
 
@@ -2208,14 +2209,14 @@ public class GameController : MonoBehaviour{
 		int whiteSum = 0;
 		int blackSum = 0;
 		uint lsbIndex;
-		for (int a = 0; a < 6; a++) {
+		for (int a = 0; a < 5; a++) {
 			ulong pieceBoard = bitboardArray [a];
 			while (pieceBoard != 0) {
 				whiteSum += basicValues [a];
 				pieceBoard &= pieceBoard - 1;
 			}
 		}
-		for (int a = 6; a < 12; a++) {
+		for (int a = 6; a < 11; a++) {
 			ulong pieceBoard = bitboardArray [a];
 			while (pieceBoard != 0) {
 				blackSum += basicValues [a];
@@ -2355,10 +2356,10 @@ public class GameController : MonoBehaviour{
 								VisualUpdate ((uint)((endTile [0] + endTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
 								GeneratePiece (endTile [0], endTile [1], 4 + 6 * gameTurn);
 							}
-
+							ulong gameState = bitboardArray [12];
 							MakeMove (bitboardArray, move);
 							startTile = new int[] { -1, -1 };
-							UpdateMoveLog (move);
+							UpdateMoveLog (move, gameState);
 							numberOfMoves += 1;
 							UpdateOpenings (move);
 
@@ -2463,7 +2464,7 @@ public class GameController : MonoBehaviour{
 
 		} else {
 //			NegaMax (bitboardArray, maxDepth, -100000, 100000,turn);
-			NegaMax (bitboardArray, maxDepth, -100000, 100000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn));
+			NegaMax (bitboardArray, maxDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn));
 
 //		Debug.Log (Perft(bitboardArray,maxDepth));
 //		Debug.Log (checksFound);
@@ -2483,10 +2484,9 @@ public class GameController : MonoBehaviour{
 		}else{
 			int index = rnd.Next (bestMoves.Count);
 			uint move = bestMoves[index];
-
-
+			ulong gameState = bitboardArray [12];
 			MakeMove (bitboardArray, move);
-			UpdateMoveLog (move);
+			UpdateMoveLog (move, gameState);
 			if (whiteTurn.activeSelf) {
 				whiteTurn.SetActive (false);
 				blackTurn.SetActive (true);
@@ -2617,6 +2617,7 @@ public class GameController : MonoBehaviour{
 			return baseValue;
 		}
 		List<uint> childNodes = allValidMoves(mainboard);
+
 		int bestValue = -1000000;
 		if (depthLeft == maxDepth) {
 			bestValue = -1000005;
@@ -2654,11 +2655,14 @@ public class GameController : MonoBehaviour{
 			mainboard [12] ^= 1;
 			if (CanTakeKing (mainboard)) {
 				mainboard [12] ^= 1;
-				return -1000000;
+				return -100000-depthLeft;
 			} else {
 				mainboard [12] ^= 1;
 				return 0;
 			}
+		}
+		if (depthLeft == maxDepth) {
+			Debug.Log (bestValue);
 		}
 		return bestValue;
 	}
