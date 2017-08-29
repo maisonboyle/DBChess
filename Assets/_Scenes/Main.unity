@@ -140,7 +140,6 @@ GameObject:
   m_Component:
   - component: {fileID: 175022142}
   - component: {fileID: 175022143}
-  - component: {fileID: 175022144}
   m_Layer: 0
   m_Name: GameController
   m_TagString: Untagged
@@ -209,7 +208,6 @@ MonoBehaviour:
   chosen: {fileID: 1207961717}
   twoChosen: {fileID: 389854376}
   gameOverButton: {fileID: 1418642728}
-  pieceVals: {fileID: 175022144}
   threePieces: {fileID: 381568653}
   twoPieces: {fileID: 642830464}
   whiteTimeText: {fileID: 782729223}
@@ -220,17 +218,6 @@ MonoBehaviour:
   players: 0000000000000000
   topRight: {fileID: 1766390695}
   bottomLeft: {fileID: 1808048872}
---- !u!114 &175022144
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 175022141}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31f1bb17f9809b84ea4584aef57780fa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &183898392
 GameObject:
   m_ObjectHideFlags: 0

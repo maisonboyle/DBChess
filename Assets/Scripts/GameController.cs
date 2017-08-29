@@ -2678,7 +2678,8 @@ public class GameController : MonoBehaviour{
 
 			// to make next bit work
 			int startPieceIndex = (int)(((move >> 7) & 7)+6*((move>>10)&1));
-			int endPieceIndex = (int)(((move >> 4) & 7)+6 - 6*((move>>10)&1));
+//			int endPieceIndex = (int)(((move >> 4) & 7)+6 - 6*((move>>10)&1));
+			int endPieceIndex = (int)((move >> 4) & 7);
 			if (endPieceIndex > 5){
 				endPieceIndex = -1;
 			}
