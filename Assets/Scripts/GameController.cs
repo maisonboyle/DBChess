@@ -1350,57 +1350,7 @@ public class GameController : MonoBehaviour{
 		0xc040c00000000000, 0x203000000000000, 0x507000000000000, 0xa0e000000000000, 0x141c000000000000, 0x2838000000000000, 0x5070000000000000, 0xa0e0000000000000,
 		0x40c0000000000000};
 
-	// order is N, NE, E, SE, S, SW, W, NW
-	ulong[][] rayAttacks = new ulong[][] {
-		new ulong[] {0x101010101010100, 0x202020202020200, 0x404040404040400, 0x808080808080800, 0x1010101010101000, 0x2020202020202000, 0x4040404040404000, 0x8080808080808000,
-			0x101010101010000, 0x202020202020000, 0x404040404040000, 0x808080808080000, 0x1010101010100000, 0x2020202020200000, 0x4040404040400000, 0x8080808080800000,
-			0x101010101000000, 0x202020202000000, 0x404040404000000, 0x808080808000000, 0x1010101010000000, 0x2020202020000000, 0x4040404040000000, 0x8080808080000000,
-			0x101010100000000, 0x202020200000000, 0x404040400000000, 0x808080800000000, 0x1010101000000000, 0x2020202000000000, 0x4040404000000000, 0x8080808000000000,
-			0x101010000000000, 0x202020000000000, 0x404040000000000, 0x808080000000000, 0x1010100000000000, 0x2020200000000000, 0x4040400000000000, 0x8080800000000000,
-			0x101000000000000, 0x202000000000000, 0x404000000000000, 0x808000000000000, 0x1010000000000000, 0x2020000000000000, 0x4040000000000000, 0x8080000000000000,
-			0x100000000000000, 0x200000000000000, 0x400000000000000, 0x800000000000000, 0x1000000000000000, 0x2000000000000000, 0x4000000000000000, 0x8000000000000000,
-			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-		new ulong[] {0x8040201008040200, 0x80402010080400, 0x804020100800, 0x8040201000, 0x80402000, 0x804000, 0x8000, 0x0, 0x4020100804020000, 0x8040201008040000, 
-			0x80402010080000, 0x804020100000, 0x8040200000, 0x80400000, 0x800000, 0x0, 0x2010080402000000, 0x4020100804000000, 0x8040201008000000, 0x80402010000000, 
-			0x804020000000, 0x8040000000, 0x80000000, 0x0, 0x1008040200000000, 0x2010080400000000, 0x4020100800000000, 0x8040201000000000, 0x80402000000000, 
-			0x804000000000, 0x8000000000, 0x0, 0x804020000000000, 0x1008040000000000, 0x2010080000000000, 0x4020100000000000, 0x8040200000000000, 0x80400000000000, 
-			0x800000000000, 0x0, 0x402000000000000, 0x804000000000000, 0x1008000000000000, 0x2010000000000000, 0x4020000000000000, 0x8040000000000000, 0x80000000000000, 
-			0x0, 0x200000000000000, 0x400000000000000, 0x800000000000000, 0x1000000000000000, 0x2000000000000000, 0x4000000000000000, 0x8000000000000000, 0x0, 0x0, 0x0, 
-			0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-		new ulong[] {0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0x0, 0xfe00, 0xfc00, 0xf800, 0xf000, 0xe000, 0xc000, 0x8000, 0x0, 0xfe0000, 0xfc0000, 0xf80000, 0xf00000, 
-			0xe00000, 0xc00000, 0x800000, 0x0, 0xfe000000, 0xfc000000, 0xf8000000, 0xf0000000, 0xe0000000, 0xc0000000, 0x80000000, 0x0, 0xfe00000000, 0xfc00000000, 
-			0xf800000000, 0xf000000000, 0xe000000000, 0xc000000000, 0x8000000000, 0x0, 0xfe0000000000, 0xfc0000000000, 0xf80000000000, 0xf00000000000, 0xe00000000000, 
-			0xc00000000000, 0x800000000000, 0x0, 0xfe000000000000, 0xfc000000000000, 0xf8000000000000, 0xf0000000000000, 0xe0000000000000, 0xc0000000000000,
-			0x80000000000000, 0x0, 0xfe00000000000000, 0xfc00000000000000, 0xf800000000000000, 0xf000000000000000, 0xe000000000000000, 0xc000000000000000,
-			0x8000000000000000, 0x0},
-		new ulong[] {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80, 0x0, 0x204, 0x408, 0x810, 0x1020, 0x2040, 0x4080, 0x8000, 0x0, 0x20408,
-			0x40810, 0x81020, 0x102040, 0x204080, 0x408000, 0x800000, 0x0, 0x2040810, 0x4081020, 0x8102040, 0x10204080, 0x20408000, 0x40800000, 0x80000000, 0x0,
-			0x204081020, 0x408102040, 0x810204080, 0x1020408000, 0x2040800000, 0x4080000000, 0x8000000000, 0x0, 0x20408102040, 0x40810204080, 0x81020408000,
-			0x102040800000, 0x204080000000, 0x408000000000, 0x800000000000, 0x0, 0x2040810204080, 0x4081020408000, 0x8102040800000, 0x10204080000000, 0x20408000000000,
-			0x40800000000000, 0x80000000000000, 0x0},
-		new ulong[] {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80, 0x101, 0x202, 0x404,
-			0x808, 0x1010, 0x2020, 0x4040, 0x8080, 0x10101, 0x20202, 0x40404, 0x80808, 0x101010, 0x202020, 0x404040, 0x808080, 0x1010101,
-			0x2020202, 0x4040404, 0x8080808, 0x10101010, 0x20202020, 0x40404040, 0x80808080, 0x101010101, 0x202020202, 0x404040404, 0x808080808,
-			0x1010101010, 0x2020202020, 0x4040404040, 0x8080808080, 0x10101010101, 0x20202020202, 0x40404040404, 0x80808080808, 0x101010101010,
-			0x202020202020, 0x404040404040, 0x808080808080, 0x1010101010101, 0x2020202020202, 0x4040404040404, 0x8080808080808, 0x10101010101010,
-			0x20202020202020, 0x40404040404040, 0x80808080808080},
-		new ulong[] {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x0, 0x100, 0x201, 0x402, 0x804, 0x1008, 0x2010, 0x4020, 0x0,
-			0x10000, 0x20100, 0x40201, 0x80402, 0x100804, 0x201008, 0x402010, 0x0, 0x1000000, 0x2010000, 0x4020100, 0x8040201, 0x10080402, 0x20100804, 0x40201008, 0x0,
-			0x100000000, 0x201000000, 0x402010000, 0x804020100, 0x1008040201, 0x2010080402, 0x4020100804, 0x0, 0x10000000000, 0x20100000000, 0x40201000000, 0x80402010000,
-			0x100804020100, 0x201008040201, 0x402010080402, 0x0, 0x1000000000000, 0x2010000000000, 0x4020100000000, 0x8040201000000, 0x10080402010000, 0x20100804020100,
-			0x40201008040201},
-		new ulong[] {0x0, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0x0, 0x100, 0x300, 0x700, 0xf00, 0x1f00, 0x3f00, 0x7f00, 0x0, 0x10000, 0x30000, 0x70000, 0xf0000, 0x1f0000,
-			0x3f0000, 0x7f0000, 0x0, 0x1000000, 0x3000000, 0x7000000, 0xf000000, 0x1f000000, 0x3f000000, 0x7f000000, 0x0, 0x100000000, 0x300000000, 0x700000000,
-			0xf00000000, 0x1f00000000, 0x3f00000000, 0x7f00000000, 0x0, 0x10000000000, 0x30000000000, 0x70000000000, 0xf0000000000, 0x1f0000000000, 0x3f0000000000,
-			0x7f0000000000, 0x0, 0x1000000000000, 0x3000000000000, 0x7000000000000, 0xf000000000000, 0x1f000000000000, 0x3f000000000000, 0x7f000000000000, 0x0,
-			0x100000000000000, 0x300000000000000, 0x700000000000000, 0xf00000000000000, 0x1f00000000000000, 0x3f00000000000000, 0x7f00000000000000},
-		new ulong[] {0x0, 0x100, 0x10200, 0x1020400, 0x102040800, 0x10204081000, 0x1020408102000, 0x102040810204000, 0x0, 0x10000, 0x1020000, 0x102040000, 0x10204080000,
-			0x1020408100000, 0x102040810200000, 0x204081020400000, 0x0, 0x1000000, 0x102000000, 0x10204000000, 0x1020408000000, 0x102040810000000, 0x204081020000000,
-			0x408102040000000, 0x0, 0x100000000, 0x10200000000, 0x1020400000000, 0x102040800000000, 0x204081000000000, 0x408102000000000, 0x810204000000000, 0x0,
-			0x10000000000, 0x1020000000000, 0x102040000000000, 0x204080000000000, 0x408100000000000, 0x810200000000000, 0x1020400000000000, 0x0, 0x1000000000000,
-			0x102000000000000, 0x204000000000000, 0x408000000000000, 0x810000000000000, 0x1020000000000000, 0x2040000000000000, 0x0, 0x100000000000000, 0x200000000000000,
-			0x400000000000000, 0x800000000000000, 0x1000000000000000, 0x2000000000000000, 0x4000000000000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
-	};
+
 
 	// initial game conditions
 //	private ushort gameState = 0x1e;
@@ -2442,12 +2392,12 @@ public class GameController : MonoBehaviour{
 
 //	System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
-//	private uint[] PV;
-//	private uint[] oldPV;
-//	private int searchDepth;
+	private uint[] PV;
+	private uint[] oldPV;
+	private int searchDepth;
 
 	private void CompStart(){
-	//	searchDepth = 2;
+		searchDepth = 2;
 		bestMoves = new List<uint> ();
 		uint move;
 		int turn = (int)bitboardArray[12]%2;
@@ -2457,7 +2407,8 @@ public class GameController : MonoBehaviour{
 //		}
 //		if (numberOfMoves == 12) {
 //			stopWatch.Stop();
-//			Debug.Log (stopWatch.ElapsedMilliseconds);
+////			Debug.Log (stopWatch.ElapsedMilliseconds);
+//			Debug.Log(totalnodes);
 //		}
 //		// THIS SECTION FOR TESTING ONLY
 //		if (turn == 0) {
@@ -2495,23 +2446,26 @@ public class GameController : MonoBehaviour{
 //			NegaMax (bitboardArray, maxDepth, -100000, 100000,turn);
 
 
-//			PV = new uint[4];
-//			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn), false);
-//
-//			while (searchDepth < maxDepth && PV[searchDepth-1] != 0) {
-//				bestMoves = new List<uint> { PV [0] };
-//				searchDepth += 2;
-//				oldPV = (uint[])PV.Clone ();
-//				PV = new uint[searchDepth * searchDepth];
-//				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn), true);
-//			}
-//			if (PV [0] != 0) {
-//				bestMoves = new List<uint> { PV [0] };
-//			}
+			PV = new uint[4];
+			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn), false);
 
+			while (searchDepth < maxDepth && PV[searchDepth-1] != 0) {
+				bestMoves = new List<uint> { PV [0] };
+//				Debug.Log ("inbetween: " + bestMoves [0].ToString ());
+				searchDepth += 2;
+				oldPV = (uint[])PV.Clone ();
+				PV = new uint[searchDepth * searchDepth];
+				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn), true);
+			}
+			if (PV [0] != 0) {
+				bestMoves = new List<uint> { PV [0] };
+			}
 			// CURRENT WORKING LINE
-			NegaMax (bitboardArray, maxDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn));
+//			NegaMax (bitboardArray, maxDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn));
 
+//			Debug.Log (bestMoves [0]);
+//			// TESTING ONLY
+//			bestMoves = new List<uint> {new uint[] {7558384,6890608 ,6757488,4777072,5561488,3630320 }[numberOfMoves/2]};
 //		Debug.Log (Perft(bitboardArray,maxDepth));
 //		Debug.Log (checksFound);
 //			// }
@@ -2592,35 +2546,35 @@ public class GameController : MonoBehaviour{
 		}
 	}
 
-	int checksFound = 0;
+//	int checksFound = 0;
 
-	private int Perft(ulong[] bitboards, int depthLeft){
-		if (depthLeft == maxDepth) {
-			checksFound = 0;
-		}
-		if (depthLeft == 0) {
-			bitboards [12] ^= 1;
-			if (CanTakeKing (bitboards)) {
-				checksFound += 1;
-			}
-			return 1;
-		}
-		int perft = 0;
-
-		// find moves
-		List<uint> validMoves = allValidMoves(bitboards);
-		ulong gameState = bitboards [12];
-		foreach (uint move in validMoves){
-			MakeMove (bitboards, move);
-			if(!CanTakeKing(bitboards)){
-				// actually a valid move
-				perft += Perft(bitboards,depthLeft-1);
-			}
-			bitboards [12] = gameState;
-			UnMakeMove (bitboards, move);
-		}
-		return perft;
-	}
+//	private int Perft(ulong[] bitboards, int depthLeft){
+//		if (depthLeft == maxDepth) {
+//			checksFound = 0;
+//		}
+//		if (depthLeft == 0) {
+//			bitboards [12] ^= 1;
+//			if (CanTakeKing (bitboards)) {
+//				checksFound += 1;
+//			}
+//			return 1;
+//		}
+//		int perft = 0;
+//
+//		// find moves
+//		List<uint> validMoves = allValidMoves(bitboards);
+//		ulong gameState = bitboards [12];
+//		foreach (uint move in validMoves){
+//			MakeMove (bitboards, move);
+//			if(!CanTakeKing(bitboards)){
+//				// actually a valid move
+//				perft += Perft(bitboards,depthLeft-1);
+//			}
+//			bitboards [12] = gameState;
+//			UnMakeMove (bitboards, move);
+//		}
+//		return perft;
+//	}
 
 
 	// THIS ONE ACTUALLY WORKS!!! --- BACKUP PROCESS ---
@@ -2656,142 +2610,46 @@ public class GameController : MonoBehaviour{
 //		return bestValue;
 //	}
 
-	// UNMAKE MOVE AND CARRIED SCORE
-	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue){
-		bool canMove = false;
-		if (depthLeft == 0) {
-			return baseValue;
-		}
-		List<uint> childNodes = allValidMoves(mainboard);
-
-		int bestValue = -1000000;
-		if (depthLeft == maxDepth) {
-			bestValue = -1000005;
-		}
-		ulong gameState = mainboard [12];
-		foreach (uint childMove in childNodes) {
-			MakeMove (mainboard, childMove);
-			if (!CanTakeKing (mainboard)) {
-				canMove = true;
-				int value;
-				if (cantRepeat.Contains (mainboard [13]) || mainboard[12] >= 0x64000) {
-					value = 0;
-				} else {
-					value = -NegaMax (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (childMove));
-				}
-				if (value > bestValue) {
-					bestValue = value;
-					if (depthLeft == maxDepth) {
-						bestMoves = new List<uint> { childMove };
-					}
-				}
-				if (value > alpha) {
-					alpha = value;
-				}
-				if (alpha >= beta){
-					mainboard [12] = gameState;
-					UnMakeMove (mainboard, childMove);
-					break;
-				}
-			}
-			mainboard [12] = gameState;
-			UnMakeMove (mainboard, childMove);
-		}
-		if (!canMove) {
-			mainboard [12] ^= 1;
-			if (CanTakeKing (mainboard)) {
-				mainboard [12] ^= 1;
-				return -100000-depthLeft;
-			} else {
-				mainboard [12] ^= 1;
-				return 0;
-			}
-		}
-		return bestValue;
-	}
-
-
-
-	// Principle variation
-//	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
+	// UNMAKE MOVE AND CARRIED SCORE - UPDATED BACKUP
+//	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue){
 //		bool canMove = false;
-//		int value;
-//
 //		if (depthLeft == 0) {
 //			return baseValue;
 //		}
 //		List<uint> childNodes = allValidMoves(mainboard);
-//		ulong gameState = mainboard [12];
 //
 //		int bestValue = -1000000;
 //		if (depthLeft == maxDepth) {
 //			bestValue = -1000005;
 //		}
-//
-//		if (isPV) {
-//			
-//			uint move = oldPV [searchDepth - depthLeft];
-//
-//			childNodes.Remove (move);
-//			MakeMove (mainboard, move);
-//			canMove = true;
-//			if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
-//				value = 0;
-//			} else {
-//				value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (move), true);
-//			}
-//
-//			mainboard [12] = gameState;
-//			UnMakeMove (mainboard, move);
-//
-//			if (value > bestValue) {
-//				bestValue = value;
-//				// if broken, set PV here
-//			}
-//			if (value > alpha) {
-//				// set PV on alpha change
-//				alpha = value;
-//				for (int i = 0; i < depthLeft - 1; i++) {
-//					PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
-//				}
-//				PV [searchDepth * (searchDepth - depthLeft)] = move;
-//			}
-//			if (alpha >= beta) {
-//				return alpha;
-//			}
-//		}
-//
+//		ulong gameState = mainboard [12];
 //		foreach (uint childMove in childNodes) {
 //			MakeMove (mainboard, childMove);
 //			if (!CanTakeKing (mainboard)) {
 //				canMove = true;
-//				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
+//				int value;
+//				if (cantRepeat.Contains (mainboard [13]) || mainboard[12] >= 0x64000) {
 //					value = 0;
 //				} else {
-//					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (childMove), false);
+//					value = -NegaMax (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (childMove));
 //				}
-//				mainboard [12] = gameState;
-//				UnMakeMove (mainboard, childMove);
-//
 //				if (value > bestValue) {
 //					bestValue = value;
-//					// set here if error
+//					if (depthLeft == maxDepth) {
+//						bestMoves = new List<uint> { childMove };
+//					}
 //				}
 //				if (value > alpha) {
 //					alpha = value;
-//					// set PV here
-//					for (int i = 0; i < depthLeft - 1; i++) {
-//						PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
-//					}
-//					PV [searchDepth * (searchDepth - depthLeft)] = childMove;
 //				}
-//				if (alpha >= beta) {
+//				if (alpha >= beta){
+//					mainboard [12] = gameState;
+//					UnMakeMove (mainboard, childMove);
 //					break;
 //				}
-//			} else {
-//				mainboard [12] = gameState;
-//				UnMakeMove (mainboard, childMove);
 //			}
+//			mainboard [12] = gameState;
+//			UnMakeMove (mainboard, childMove);
 //		}
 //		if (!canMove) {
 //			mainboard [12] ^= 1;
@@ -2805,6 +2663,103 @@ public class GameController : MonoBehaviour{
 //		}
 //		return bestValue;
 //	}
+
+
+
+	// Principle variation
+	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
+		bool canMove = false;
+		int value;
+
+		if (depthLeft == 0) {
+			return baseValue;
+		}
+		List<uint> childNodes = allValidMoves(mainboard);
+		ulong gameState = mainboard [12];
+
+		int bestValue = -1000000;
+		if (depthLeft == maxDepth) {
+			bestValue = -1000005;
+		}
+
+		if (isPV) {
+			
+			uint move = oldPV [searchDepth - depthLeft];
+			if (childNodes.Contains (move)) {
+				childNodes.Remove (move);
+				MakeMove (mainboard, move);
+				canMove = true;
+				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
+					value = 0;
+				} else {
+					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (move), true);
+				}
+
+				mainboard [12] = gameState;
+				UnMakeMove (mainboard, move);
+
+				if (value > bestValue) {
+					bestValue = value;
+					// if broken, set PV here
+				}
+				if (value > alpha) {
+					// set PV on alpha change
+					alpha = value;
+					for (int i = 0; i < depthLeft - 1; i++) {
+						PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
+					}
+					PV [searchDepth * (searchDepth - depthLeft)] = move;
+				}
+				if (alpha >= beta) {
+					return alpha;
+				}
+			}
+		}
+
+		foreach (uint childMove in childNodes) {
+			MakeMove (mainboard, childMove);
+			if (!CanTakeKing (mainboard)) {
+				canMove = true;
+				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
+					value = 0;
+				} else {
+					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (childMove), false);
+				}
+				mainboard [12] = gameState;
+				UnMakeMove (mainboard, childMove);
+
+				if (value > bestValue) {
+					bestValue = value;
+					// set here if error
+				}
+				if (value > alpha) {
+					alpha = value;
+					// set PV here
+					for (int i = 0; i < depthLeft - 1; i++) {
+						PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
+					}
+					PV [searchDepth * (searchDepth - depthLeft)] = childMove;
+				}
+				if (alpha >= beta) {
+					break;
+				}
+			} else {
+				mainboard [12] = gameState;
+				UnMakeMove (mainboard, childMove);
+			}
+		}
+		if (!canMove) {
+			mainboard [12] ^= 1;
+			if (CanTakeKing (mainboard)) {
+				mainboard [12] ^= 1;
+				return -100000-depthLeft;
+			} else {
+				mainboard [12] ^= 1;
+				return 0;
+			}
+		}
+		return bestValue;
+	}
 
 
 	private bool CanTakeKing(ulong[] bitboards){
