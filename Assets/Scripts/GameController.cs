@@ -22,7 +22,7 @@ public class GameController : MonoBehaviour{
 	public GameObject chosen;
 	public GameObject twoChosen;
 	public GameObject gameOverButton;
-	public PieceVals pieceVals;
+//	public PieceVals pieceVals;
 	public GameObject threePieces;
 	public GameObject twoPieces;
 	public Text whiteTimeText;
@@ -2218,7 +2218,7 @@ public class GameController : MonoBehaviour{
 			}
 		}
 		if (!theEndGame && blackSum < 14 && whiteSum < 14) {
-			pieceVals.EnterEndGame ();
+			PieceVals.EnterEndGame ();
 			theEndGame = true;
 		}
 		if (blackSum == 0 && whiteSum == 0) {
@@ -2447,7 +2447,7 @@ public class GameController : MonoBehaviour{
 
 
 			PV = new uint[4];
-			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn), false);
+			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, PieceVals.FullEvaluate(bitboardArray)*(1-2*turn), false);
 
 			while (searchDepth < maxDepth && PV[searchDepth-1] != 0) {
 				bestMoves = new List<uint> { PV [0] };
@@ -2455,7 +2455,7 @@ public class GameController : MonoBehaviour{
 				searchDepth += 2;
 				oldPV = (uint[])PV.Clone ();
 				PV = new uint[searchDepth * searchDepth];
-				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn), true);
+				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, PieceVals.FullEvaluate(bitboardArray)*(1-2*turn), true);
 			}
 			if (PV [0] != 0) {
 				bestMoves = new List<uint> { PV [0] };
@@ -2692,7 +2692,7 @@ public class GameController : MonoBehaviour{
 				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 					value = 0;
 				} else {
-					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (move), true);
+					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - PieceVals.AdjustScore (move), true);
 				}
 
 				mainboard [12] = gameState;
@@ -2723,7 +2723,7 @@ public class GameController : MonoBehaviour{
 				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 					value = 0;
 				} else {
-					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (childMove), false);
+					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - PieceVals.AdjustScore (childMove), false);
 				}
 				mainboard [12] = gameState;
 				UnMakeMove (mainboard, childMove);

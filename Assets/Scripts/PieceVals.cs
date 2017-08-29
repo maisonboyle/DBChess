@@ -5,8 +5,8 @@ using UnityEngine;
 public class PieceVals : MonoBehaviour {
 
 
-	int[] baseValues = {100, 320, 330, 500, 900, 20000, 0, 0};
-	int[][] pieceSquareTable = new int[][]{
+	static int[] baseValues = {100, 320, 330, 500, 900, 20000, 0, 0};
+	static int[][] pieceSquareTable = new int[][]{
 		// wp
 		new int[]
 		{0, 0, 0, 0, 0, 0, 0, 0,
@@ -81,12 +81,8 @@ public class PieceVals : MonoBehaviour {
 		{-30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -20, -30, -30, -40, -40, -30, -30, -20, -10, -20, -20, -20, -20, -20, -20, -10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20}
 	};
 
-	private int pieceIndex;
-	private int total;
-	private int value;
-	private int fromPieceIndex;
-	private int toPieceIndex;
-	private int[][] endPieceSquares = new int[][] {
+
+	private static int[][] endPieceSquares = new int[][] {
 		// white pawns, white king, black pawns, black king
 		new int[]
 		{0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0, 0, 5, 5, 5, 10, 10, 10, 10, 10, 10, 10,
@@ -112,14 +108,14 @@ new int[]
 		};
 
 
-	public void EnterEndGame(){
+	public static void EnterEndGame(){
 		pieceSquareTable [0] = endPieceSquares [0];
 		pieceSquareTable [5] = endPieceSquares [1];
 		pieceSquareTable [6] = endPieceSquares [2];
 		pieceSquareTable [11] = endPieceSquares [3];
 	}
 
-	uint[] leastSigLookup = {
+	static uint[] leastSigLookup = {
 		0,  1, 48,  2, 57, 49, 28,  3,
 		61, 58, 50, 42, 38, 29, 17,  4,
 		62, 55, 59, 36, 53, 51, 43, 22,
@@ -130,12 +126,13 @@ new int[]
 		25, 14, 19,  9, 13,  8,  7,  6
 	}; 
 
-	ulong debruijnleast = 0x03f79d71b4cb0a89;
+	static ulong debruijnleast = 0x03f79d71b4cb0a89;
 
 
-	public int FullEvaluate(ulong[] bitboards){
-		value = 0;
+	public static int FullEvaluate(ulong[] bitboards){
+		int value = 0;
 		uint lsbIndex;
+
 		for (int a = 0; a < 6; a++) {
 			ulong pieceBoard = bitboards [a];
 			while (pieceBoard != 0) {
@@ -163,8 +160,9 @@ new int[]
 
 
 
-	public int AdjustScore(uint move){
-		value = 0;
+	public static int AdjustScore(uint move){
+		int value = 0;
+
 		// castling
 		if ((move >> 2) % 2 == 1) {
 			return 30;
