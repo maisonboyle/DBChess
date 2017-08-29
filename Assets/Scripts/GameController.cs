@@ -1350,6 +1350,186 @@ public class GameController : MonoBehaviour{
 		0xc040c00000000000, 0x203000000000000, 0x507000000000000, 0xa0e000000000000, 0x141c000000000000, 0x2838000000000000, 0x5070000000000000, 0xa0e0000000000000,
 		0x40c0000000000000};
 
+	// BROUGHT ACROSS PIECEVALS
+	static int[] baseValues = {100, 320, 330, 500, 900, 20000, 0, 0};
+	static int[][] pieceSquareTable = new int[][]{
+		// wp
+		new int[]
+		{0, 0, 0, 0, 0, 0, 0, 0,
+			0, 10, 10, -20, -25, 10, 10, 0,
+			5,-5, -10, -5, -5,-10, -5, 5,
+			5, 0, 0, 20, 20, 0, 0, 0, 
+			5, 5, 10, 25, 25, 10, 5, 5, 10, 10, 20, 30, 30, 20, 10, 10,
+			50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 0, 0, 0, 0, 0, 0} , 
+
+		// wn
+		new int []
+		{-50, -35, -30, -30, -30, -30, -35, -50, -40, -20, 0, 5, 5,
+			0, -20, -40, -30, 5, 5, 15, 15, 5, 5, -30, -30, 0, 15, 20,
+			20, 15, 0, -30, -30, 5, 15, 20, 20, 15, 5, -30, -30, 0, 10,
+			15, 15, 10, 0, -30, -40, -20, 0, 0, 0, 0, -20, -40, -50, -40,
+			-30, -30, -30, -30, -40, -50},
+
+		// wb
+		new int []
+		{-20, -10, -10, -10, -10, -10, -10, -20, -10, 5, 0, 0, 0, 0, 5, -10, 
+			-10, 10, 10, 10, 10, 10, 10, -10, -10, 0, 10, 10, 10, 10, 0, -10,
+			-10, 5, 5, 10, 10, 5, 5, -10, -10, 0, 5, 10, 10, 5, 0, -10, -10,
+			0, 0, 0, 0, 0, 0, -10, -20, -10, -10, -10, -10, -10, -10, -20},
+
+		// wr
+		new int []
+		{0, 0, 0, 5, 5, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0,
+			0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5,
+			-5, 0, 0, 0, 0, 0, 0, -5, 5, 10, 10, 10, 10, 10, 10, 5, 0, 0,
+			0, 0, 0, 0, 0, 0},
+
+		// wq
+		new int []
+		{-20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 5, 0, 0, 0, 0, -10,
+			-10, 5, 5, 5, 5, 5, 0, -10, 0, 0, 5, 5, 5, 5, 0, -5, -5, 0, 5,
+			5, 5, 5, 0, -5, -10, 0, 5, 5, 5, 5, 0, -10, -10, 0, 0, 0, 0, 0,
+			0, -10, -20, -10, -10, -5, -5, -10, -10, -20},
+
+		// wk
+		new int []
+		{20, 30, 10, 0, 0, 10, 30, 20, 20, 20, 0, 0, 0, 0, 20, 20, -10, -20, -20, 
+			-20, -20, -20, -20, -10, -20, -30, -30, -40, -40, -30, -30, -20, -30,
+			-40, -40, -50, -50, -40, -40, -30, 
+			-30, -40, -40, -50, -50, -40, -40,-30,
+			-30, -40, -40, -50, -50, -40, -40, -30, 
+			-30, -40, -40, -50, -50, -40, -40, -30},
+
+		// black
+
+		// bp
+		new int []
+		{0, 0, 0, 0, 0, 0, 0, 0, 50, 50, 50, 50, 50, 50, 50, 50, 10, 10, 20, 30, 30, 20, 10, 10, 5, 5, 10, 25, 25, 10, 5, 5, 5, 0, 0, 20, 20, 0, 0, 0, 5, -5, -10, -5, -5, -10, -5, 5, 0, 10, 10, -20, -25, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+
+		// bn
+		new int []
+		{-50, -40, -30, -30, -30, -30, -40, -50, -40, -20, 0, 0, 0, 0, -20, -40, -30, 0, 10, 15, 15, 10, 0, -30, -30, 5, 15, 20, 20, 15, 5, -30, -30, 0, 15, 20, 20, 15, 0, -30, -30, 5, 5, 15, 15, 5, 5, -30, -40, -20, 0, 5, 5, 0, -20, -40, -50, -35, -30, -30, -30, -30, -35, -50},
+
+		// bb
+		new int[]
+		{-20, -10, -10, -10, -10, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 10, 10, 5, 0, -10, -10, 5, 5, 10, 10, 5, 5, -10, -10, 0, 10, 10, 10, 10, 0, -10, -10, 10, 10, 10, 10, 10, 10, -10, -10, 5, 0, 0, 0, 0, 5, -10, -20, -10, -10, -10, -10, -10, -10, -20},
+
+		// br
+		new int[]
+		{0, 0, 0, 0, 0, 0, 0, 0, 5, 10, 10, 10, 10, 10, 10, 5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 5, 5, 0, 0, 0},
+
+		// bq
+		new int[]
+		{-20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 5, 5, 5, 0, -10, -5, 0, 5, 5, 5, 5, 0, -5, 0, 0, 5, 5, 5, 5, 0, -5, -10, 5, 5, 5, 5, 5, 0, -10, -10, 0, 5, 0, 0, 0, 0, -10, -20, -10, -10, -5, -5, -10, -10, -20},
+
+		// bk
+		new int[]
+		{-30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -20, -30, -30, -40, -40, -30, -30, -20, -10, -20, -20, -20, -20, -20, -20, -10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20}
+	};
+
+
+	private static int[][] endPieceSquares = new int[][] {
+		// white pawns, white king, black pawns, black king
+		new int[]
+		{0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0, 0, 5, 5, 5, 10, 10, 10, 10, 10, 10, 10,
+			10, 20, 20, 20, 20, 20, 20, 20, 20, 30, 30, 30, 30, 30, 30, 30, 30, 45, 45,
+			45, 50, 50, 45, 45, 45, 65, 65, 65, 70, 70, 65, 65, 65, 80, 80, 80, 80, 80, 80, 80, 80} ,
+
+		new int[]
+		{-50, -30, -30, -30, -30, -30, -30, -50, -30, -30, 0, 0, 0, 0, -30, -30, -30, -10, 20, 
+			30, 30, 20, -10, -30, -30, -10, 30, 35, 35, 30, -10, -30, -30, -10, 30, 35, 35, 30,
+			-10, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -20, -10, 0, 0, -10, -20, -30,
+			-50, -40, -30, -20, -20, -30, -40, -50},
+
+		new int[]
+		{80, 80, 80, 80, 80, 80, 80, 80, 65, 65, 65, 70, 70, 65, 65, 65, 45, 45, 45, 50, 50, 45,
+			45, 45, 30, 30, 30, 30, 30, 30, 30, 30, 20, 20, 20, 20, 20, 20, 20, 20, 10, 10, 10,
+			10, 10, 10, 10, 10, 5, 5, 5, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0},
+
+		new int[]
+		{-50, -40, -30, -20, -20, -30, -40, -50, -30, -20, -10, 0, 0, -10, -20, -30, -30, -10, 20, 
+			30, 30, 20, -10, -30, -30, -10, 30, 35, 35, 30, -10, -30, -30, -10, 30, 35, 35, 30, -10, 
+			-30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -30, 0, 0, 0, 0, -30, -30, -50, -30, -30, 
+			-30, -30, -30, -30, -50}
+	};
+
+
+	private static void EnterEndGame(){
+		pieceSquareTable [0] = endPieceSquares [0];
+		pieceSquareTable [5] = endPieceSquares [1];
+		pieceSquareTable [6] = endPieceSquares [2];
+		pieceSquareTable [11] = endPieceSquares [3];
+	}
+
+	private static int FullEvaluate(ulong[] bitboards){
+		int value = 0;
+		uint lsbIndex;
+
+		for (int a = 0; a < 6; a++) {
+			ulong pieceBoard = bitboards [a];
+			while (pieceBoard != 0) {
+				lsbIndex = leastSigLookup [((pieceBoard & (~pieceBoard+1)) * debruijnleast) >> 58];
+				//				Debug.Log (pieceSquareTable [a] [lsbIndex] + baseValues [a]);
+
+				value += pieceSquareTable [a] [lsbIndex] + baseValues [a];
+				pieceBoard &= pieceBoard - 1;
+			}
+		}
+		for (int a = 6; a < 12; a++) {
+			ulong pieceBoard = bitboards [a];
+			while (pieceBoard != 0) {
+				lsbIndex = leastSigLookup [((pieceBoard & (~pieceBoard+1)) * debruijnleast) >> 58];
+
+				//				Debug.Log (pieceSquareTable [a] [lsbIndex] + baseValues [a - 6]);
+
+				value -= pieceSquareTable [a] [lsbIndex] + baseValues [a - 6];
+				pieceBoard &= pieceBoard - 1;
+			}
+		}
+
+		return value;
+	}
+
+
+
+	private static int AdjustScore(uint move){
+		int value = 0;
+
+		// castling
+		if ((move >> 2) % 2 == 1) {
+			return 30;
+		} else if ((move >> 3) % 2 == 1) {
+			return 15;
+		}
+
+		uint toIndex = ((move >> 11) & 0x3f); 
+		uint fromIndex = move >> 17; 
+		uint pieceIndex = ((move >> 7) & 0x7);
+		uint capturedIndex = ((move >> 4) & 0x7);
+		uint turn = (move >> 10) % 2;
+
+		// promotion
+		if ((toIndex > 55 | toIndex < 8) && pieceIndex == 0) {
+			if (move % 2 == 0) {
+				return 750;
+			} else {
+				return 180;
+			}
+		}
+
+		// standard
+		value += pieceSquareTable[pieceIndex+6*turn][toIndex] - pieceSquareTable[pieceIndex+6*turn][fromIndex];
+
+		if (capturedIndex != 7) {
+			if (capturedIndex == 6) {
+				// changed
+				value += 100 + pieceSquareTable [6 - 6 * turn][(toIndex+fromIndex)/2];
+			} else {
+				value += pieceSquareTable [capturedIndex + 6 - 6 * turn] [toIndex] + baseValues[capturedIndex];
+			}
+		}
+		return value;
+	}
 
 
 	// initial game conditions
@@ -2218,7 +2398,7 @@ public class GameController : MonoBehaviour{
 			}
 		}
 		if (!theEndGame && blackSum < 14 && whiteSum < 14) {
-			PieceVals.EnterEndGame ();
+			EnterEndGame ();
 			theEndGame = true;
 		}
 		if (blackSum == 0 && whiteSum == 0) {
@@ -2407,8 +2587,7 @@ public class GameController : MonoBehaviour{
 //		}
 //		if (numberOfMoves == 12) {
 //			stopWatch.Stop();
-////			Debug.Log (stopWatch.ElapsedMilliseconds);
-//			Debug.Log(totalnodes);
+//			Debug.Log (stopWatch.ElapsedMilliseconds);
 //		}
 //		// THIS SECTION FOR TESTING ONLY
 //		if (turn == 0) {
@@ -2447,7 +2626,7 @@ public class GameController : MonoBehaviour{
 
 
 			PV = new uint[4];
-			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, PieceVals.FullEvaluate(bitboardArray)*(1-2*turn), false);
+			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false);
 
 			while (searchDepth < maxDepth && PV[searchDepth-1] != 0) {
 				bestMoves = new List<uint> { PV [0] };
@@ -2455,7 +2634,7 @@ public class GameController : MonoBehaviour{
 				searchDepth += 2;
 				oldPV = (uint[])PV.Clone ();
 				PV = new uint[searchDepth * searchDepth];
-				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, PieceVals.FullEvaluate(bitboardArray)*(1-2*turn), true);
+				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true);
 			}
 			if (PV [0] != 0) {
 				bestMoves = new List<uint> { PV [0] };
@@ -2692,7 +2871,7 @@ public class GameController : MonoBehaviour{
 				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 					value = 0;
 				} else {
-					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - PieceVals.AdjustScore (move), true);
+					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (move), true);
 				}
 
 				mainboard [12] = gameState;
@@ -2723,7 +2902,7 @@ public class GameController : MonoBehaviour{
 				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 					value = 0;
 				} else {
-					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - PieceVals.AdjustScore (childMove), false);
+					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
 				}
 				mainboard [12] = gameState;
 				UnMakeMove (mainboard, childMove);
