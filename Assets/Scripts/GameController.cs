@@ -1496,9 +1496,9 @@ public class GameController : MonoBehaviour{
 		int value = 0;
 
 		// castling
-		if ((move >> 2) % 2 == 1) {
+		if (((move >> 2) & 1) == 1) {
 			return 30;
-		} else if ((move >> 3) % 2 == 1) {
+		} else if (((move >> 3) & 1) == 1) {
 			return 15;
 		}
 
@@ -1506,11 +1506,11 @@ public class GameController : MonoBehaviour{
 		uint fromIndex = move >> 17; 
 		uint pieceIndex = ((move >> 7) & 0x7);
 		uint capturedIndex = ((move >> 4) & 0x7);
-		uint turn = (move >> 10) % 2;
+		uint turn = (move >> 10) & 1;
 
 		// promotion
 		if ((toIndex > 55 | toIndex < 8) && pieceIndex == 0) {
-			if (move % 2 == 0) {
+			if ((move & 1) == 0) {
 				return 750;
 			} else {
 				return 180;
@@ -1617,6 +1617,103 @@ public class GameController : MonoBehaviour{
 		return (value & ~(value >> 1));
 	}
 
+	private static int numberChecks;
+	private static ulong bishopCheckers;
+	private static ulong rookCheckers;
+	private static ulong kingDangers;
+
+	private static void FindChecks(ulong[] bitboards, ulong occupancy){
+		uint lsbIndex;
+		numberChecks = 0;
+		kingDangers = 0;
+		int turn = (int)bitboards [12] & 1;
+		ulong kingBoard = bitboards [5 + 6 * turn];
+		occupancy ^= kingBoard;
+
+		// pawn captures
+		if (turn == 0) {
+			// white
+			kingDangers |= ((bitboards [6] >> 9)&0x7f7f7f7f7f7f7f7f | (bitboards [6] >> 7)&0xfefefefefefefefe);
+		} else {
+			// black
+			kingDangers |= ((bitboards [0] << 9)&0xfefefefefefefefe | (bitboards [0] << 7)&0x7f7f7f7f7f7f7f7f);
+		}
+		if ((kingDangers & kingBoard) != 0) {
+			numberChecks++;
+		}
+
+
+		// knights
+		ulong pieceBitBoard = bitboards[7-6*turn];
+		ulong pieceAttacks = 0;
+		while (pieceBitBoard != 0) {
+			lsbIndex = leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58];
+			pieceAttacks |= knightMoves [lsbIndex];
+			pieceBitBoard &= pieceBitBoard - 1;
+		}
+		kingDangers |= pieceAttacks;
+		if ((pieceAttacks & kingBoard) != 0) {
+			numberChecks++;
+		}
+
+		// opponent king
+		pieceBitBoard = bitboards [11-6*turn];
+		kingDangers |= kingMoves [leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58]];
+
+		// sliders
+		// bishops
+		pieceBitBoard = bitboards [8-6*turn];
+		while (pieceBitBoard != 0) {
+			lsbIndex = leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58];
+			pieceAttacks = magicBishopAttacks [lsbIndex] [((bishopPremasks [lsbIndex] & occupancy) * bishopMagics [lsbIndex]) >> bishopShifts [lsbIndex]];
+			if ((pieceAttacks & kingBoard) != 0) {
+				numberChecks++;
+				bishopCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
+			}
+			kingDangers |= pieceAttacks;
+			pieceBitBoard &= pieceBitBoard - 1;
+		}
+
+		// rooks
+		pieceBitBoard = bitboards [9-6*turn];
+		while (pieceBitBoard != 0) {
+			lsbIndex = leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58];
+			pieceAttacks = magicRookAttacks [lsbIndex] [((rookPremasks [lsbIndex] & occupancy) * rookMagics [lsbIndex]) >> rookShifts [lsbIndex]];
+			if ((pieceAttacks & kingBoard) != 0) {
+				numberChecks++;
+				rookCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
+			}
+			kingDangers |= pieceAttacks;
+			pieceBitBoard &= pieceBitBoard - 1;
+		}
+
+		// queens
+		pieceBitBoard = bitboards [10-6*turn];
+		while (pieceBitBoard != 0) {
+			lsbIndex = leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58];
+			pieceAttacks = magicBishopAttacks [lsbIndex] [((bishopPremasks [lsbIndex] & occupancy) * bishopMagics [lsbIndex]) >> bishopShifts [lsbIndex]];
+			if ((pieceAttacks & kingBoard) != 0) {
+				numberChecks++;
+				bishopCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
+			}
+			kingDangers |= pieceAttacks;
+			pieceAttacks = magicRookAttacks [lsbIndex] [((rookPremasks [lsbIndex] & occupancy) * rookMagics [lsbIndex]) >> rookShifts [lsbIndex]];
+			if ((pieceAttacks & kingBoard) != 0) {
+				numberChecks++;
+				rookCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
+			}
+			kingDangers |= pieceAttacks;
+			pieceBitBoard &= pieceBitBoard - 1;
+		}
+
+		return;
+	}
+
+
+
+
+
+
 
 	private static List<uint> allValidMoves(ulong[] bitboards){
 		bool insertStart = false;
@@ -1630,7 +1727,7 @@ public class GameController : MonoBehaviour{
 		ulong gameState = bitboards [12];
 
 		// white turn
-		if (gameState % 2 == 0) {
+		if ((gameState & 1) == 0) {
 			
 			// knights
 			uint lsbIndex = 0;
@@ -2297,9 +2394,9 @@ public class GameController : MonoBehaviour{
 
 		ulong[] boardClone;
 		string moveText;
-		if ((move>>2)%2 == 1){
+		if (((move>>2)&1) == 1){
 			moveText = "O-O";
-		}else if ((move>>3)%2 == 1){
+		}else if (((move>>3)&1) == 1){
 			moveText = "O-O-O";
 
 		} else {
@@ -2312,7 +2409,7 @@ public class GameController : MonoBehaviour{
 			uint fromTile = move >> 17;
 			uint toTile = (move >> 11) & 0x3f;
 			uint pieceIndex = (move >> 7) & 0x7;
-			uint turn = (uint)bitboardArray [12] % 2;
+			uint turn = (uint)bitboardArray [12] &1;
 //			moveText = across [fromTile % 8] + up [fromTile / 8] + across [toTile % 8] + up [toTile / 8];
 
 			moveText = new string[] { "", "N", "B", "R", "Q", "K" } [pieceIndex];
@@ -2321,8 +2418,8 @@ public class GameController : MonoBehaviour{
 					// same piece move to
 					if ((otherMove & 0x1ffff) == (move & 0x1ffff) && move != otherMove) {
 						// same row
-						if ((otherMove >> 17) % 8 != fromTile % 8) {
-							moveText += across[fromTile % 8];
+						if (((otherMove >> 17) &7) != (fromTile &7)) {
+							moveText += across[fromTile &7];
 							break;
 						} else {
 							moveText += up[fromTile / 8];
@@ -2358,6 +2455,10 @@ public class GameController : MonoBehaviour{
 				moveText = moveText + "#";
 			} else {
 				moveText = moveText + "+";
+			}
+			if (players [bitboardArray [12] & 1] == 0) {
+				Debug.Log ("vib");
+				Handheld.Vibrate ();
 			}
 		}
 		if (numberOfMoves % 2 == 0) {
@@ -2553,25 +2654,36 @@ public class GameController : MonoBehaviour{
 			openingLines = newOpenings;
 		}
 	}
-
-
-
+		
 	private void Ending(){
 		gameOverButton.SetActive (false);
 	}
 
 
-	// new
+	Thread worker;
 
+	private int maxTime;
 
 	private void CompTurn(){
 	// removed from background for profiling
+		stopThread = false;
+		CancelInvoke("EndThread");
 		new Thread(() => CompStart()) { IsBackground = true }.Start();
+		Invoke ("EndThread", maxTime);
+//		Invoke ("EndThread", 3);
 
 	}
 
-//	System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
+	private void EndThread(){
+		if (!threadComplete) {
+			stopThread = true;
+		}
+	}
+
+
+//	System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
+	private bool stopThread;
 	private uint[] PV;
 	private uint[] oldPV;
 	private int searchDepth;
@@ -2580,7 +2692,7 @@ public class GameController : MonoBehaviour{
 		searchDepth = 2;
 		bestMoves = new List<uint> ();
 		uint move;
-		int turn = (int)bitboardArray[12]%2;
+		int turn = (int)bitboardArray[12]&1;
 
 //		if (numberOfMoves == 0) {
 //			stopWatch.Start();
@@ -2628,7 +2740,8 @@ public class GameController : MonoBehaviour{
 			PV = new uint[4];
 			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false);
 
-			while (searchDepth < maxDepth && PV[searchDepth-1] != 0) {
+//			while (searchDepth < maxDepth && PV[searchDepth-1] != 0 && !stopThread) {
+			while (searchDepth < maxDepth && PV[searchDepth-1] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
 //				Debug.Log ("inbetween: " + bestMoves [0].ToString ());
 				searchDepth += 2;
@@ -2636,7 +2749,7 @@ public class GameController : MonoBehaviour{
 				PV = new uint[searchDepth * searchDepth];
 				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true);
 			}
-			if (PV [0] != 0) {
+			if (PV [0] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
 			}
 			// CURRENT WORKING LINE
@@ -2649,8 +2762,8 @@ public class GameController : MonoBehaviour{
 //		Debug.Log (checksFound);
 //			// }
 		}
-			threadComplete = true; 
-			return;
+		threadComplete = true; 
+		return;
 
 	}
 
@@ -2713,7 +2826,7 @@ public class GameController : MonoBehaviour{
 			}
 			numberOfMoves += 1;
 			UpdateOpenings (move);
-			// avoiding stack
+
 			if (InCheckmate (bitboardArray) || staleMate) {
 				gameDone = true;
 				gameOverButton.SetActive (true);
@@ -2851,7 +2964,7 @@ public class GameController : MonoBehaviour{
 		bool canMove = false;
 		int value;
 
-		if (depthLeft == 0) {
+		if (depthLeft == 0 || stopThread) {
 			return baseValue;
 		}
 		List<uint> childNodes = allValidMoves(mainboard);
@@ -2882,7 +2995,7 @@ public class GameController : MonoBehaviour{
 					bestValue = value;
 					// if broken, set PV here
 				}
-				if (value > alpha) {
+				if (value > alpha && !stopThread) {
 					// set PV on alpha change
 					alpha = value;
 					for (int i = 0; i < depthLeft - 1; i++) {
@@ -2912,7 +3025,7 @@ public class GameController : MonoBehaviour{
 					bestValue = value;
 					// set here if error
 				}
-				if (value > alpha) {
+				if (value > alpha && !stopThread) {
 					alpha = value;
 					// set PV here
 					for (int i = 0; i < depthLeft - 1; i++) {
@@ -2950,7 +3063,7 @@ public class GameController : MonoBehaviour{
 		ulong gameState = bitboards [12];
 
 		// white turn
-		if (gameState % 2 == 0) {
+		if ((gameState & 1) == 0) {
 
 			// knights
 			uint lsbIndex = 0;
@@ -3220,13 +3333,12 @@ public class GameController : MonoBehaviour{
 			bitboards[6-6*turn] ^= (ulong)1<<(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn);
 			// HASH VALUE
 
-			// Yeah, these 5 lines may occasionally cause a crash but I honestly have no idea why as it works like 99% of the time, sorry.
 			bitboards [13] ^= hashValues [6 - 6 * turn] [(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn)];
 //          the line that originally caused the error, if you're looking here then the change was eviedntly useless.
 //			bitboards[13] ^= hashValues[6-6*turn][(((int)(bitboards[12] & 0x7e0) >> 5)-8+16*(int)turn)];
 		}
 		//swap end line pawns for promoted pieces
-		if (movingPieceIndex % 6 == 0) {
+		if (movingPieceIndex - 6*turn == 0) {
 			if ((move & 0x3) == 0) {
 				// promote to queen
 				bitboards [4 + 6 * turn] ^= (((ulong)1 << (int)((move & 0x1f800)>>11))& 0xff000000000000ff);
@@ -3260,7 +3372,7 @@ public class GameController : MonoBehaviour{
 		bitboards[13] ^= hashValues[movingPieceIndex][(int)((move & 0x1f800)>>11)];
 
 		//swap end line pawns for promoted pieces
-		if (movingPieceIndex % 6 == 0) {
+		if (movingPieceIndex - 6 * turn == 0) {
 			bitboards [12] &= 0xfff;
 			if ((move & 0x3) == 0) {
 				// promote to queen
@@ -3447,7 +3559,7 @@ public class GameController : MonoBehaviour{
 	}
 
 	void DecreaseTime(){
-		if (bitboardArray[12]%2 == 0) {
+		if ((bitboardArray[12]&1) == 0) {
 			if (whiteTime > 0) {
 				whiteTime -= 1;
 				whiteTimeText.text = "White: " + whiteTime / 60 + ":" + new System.String('0', ((whiteTime % 60).ToString ().Length) % 2) + (whiteTime % 60).ToString ();
@@ -3495,6 +3607,7 @@ public class GameController : MonoBehaviour{
 		moveLogText.text = "";
 
 		maxDepth = PlayerPrefs.GetInt ("Depth");
+		maxTime = PlayerPrefs.GetInt ("Time");
 		blackTurn.SetActive (false);
 		whiteTurn.SetActive (true);
 		players = new int[] { 0, 0 };

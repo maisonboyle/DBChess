@@ -15,9 +15,11 @@ public class MenuController : MonoBehaviour {
 	public Slider WhiteSlider;
 	public Slider BlackSlider;
 
-	public Slider searchDepth;
-	public Text depthText;
-
+	public Dropdown depthDrop;
+	public Dropdown timeDrop;
+	public GameObject depthText;
+	public GameObject timeText;
+	public GameObject AIText;
 
 	private string white = "Player";
 	private string black = "Player";
@@ -26,23 +28,27 @@ public class MenuController : MonoBehaviour {
 
 
 	public void DevSwitch(){
-		if (depthText.gameObject.activeSelf) {
-			depthText.gameObject.SetActive (false);
-			searchDepth.gameObject.SetActive (false);
+		if (depthText.activeSelf) {
+			depthText.SetActive (false);
+			depthDrop.gameObject.SetActive (false);
+			timeText.SetActive (false);
+			timeDrop.gameObject.SetActive (false);
+			AIText.SetActive (false);
 		} else {
-			depthText.gameObject.SetActive (true);
-			searchDepth.gameObject.SetActive (true);
+			depthText.SetActive (true);
+			depthDrop.gameObject.SetActive (true);
+			timeText.SetActive (true);
+			timeDrop.gameObject.SetActive (true);
+			AIText.SetActive (true);
 		}
 	}
 
-	public void DepthChanged(){
-		depthText.text = "Depth: " + (int)searchDepth.value;
-	}
 
 	public void Start(){
-		depthText.text = "Depth: " + (int)searchDepth.value;
 		white = PlayerPrefs.GetString("White");
 		black = PlayerPrefs.GetString("Black");
+		depthDrop.value = (PlayerPrefs.GetInt("Depth")/2)-1;
+		timeDrop.value = (System.Array.IndexOf (new int[] { 1, 2, 3, 4, 5, 10, 15, 30 }, PlayerPrefs.GetInt ("Time")));
 		if (white != "Player") {
 			WhiteSlider.gameObject.SetActive (false);
 			WhiteClock.transform.parent.gameObject.SetActive (false);
@@ -125,7 +131,8 @@ public class MenuController : MonoBehaviour {
 	public void LauchGame(){
 		PlayerPrefs.SetString("White", white);
 		PlayerPrefs.SetString("Black", black);
-		PlayerPrefs.SetInt ("Depth", (int)searchDepth.value);
+		PlayerPrefs.SetInt ("Depth", new int[] { 2, 4, 6, 8 } [depthDrop.value]);
+		PlayerPrefs.SetInt ("Time", new int[] { 1, 2, 3, 4,5,10,15,30 } [timeDrop.value]);
 		if (white == "Player") {
 			PlayerPrefs.SetInt ("WhiteTime", whiteTime);
 		} else {
