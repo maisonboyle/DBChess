@@ -1539,18 +1539,36 @@ public class GameController : MonoBehaviour{
 	// STANDARD GAME SETUP: {0xff00, 0x42, 0x24, 0x81, 0x8, 0x10, 0xff000000000000, 0x4200000000000000, 0x2400000000000000,
 	//                      0x8100000000000000, 0x800000000000000, 0x1000000000000000, 0x1e}
 
-	// PERFT TESTING ONLY: (positions refered to my chessprogramming.wkikispaces/Perft+Results)
-	// Position 3: {0x200005000, 0, 0, 0x2000000, 0, 0x100000000, 0x4080020000000, 0, 0, 0x8000000000, 0, 0x80000000, 0}
+//	 PERFT TESTING ONLY: (positions refered to my chessprogramming.wkikispaces/Perft+Results)
+//	 Position 3: {0x200005000, 0, 0, 0x2000000, 0, 0x100000000, 0x4080020000000, 0, 0, 0x8000000000, 0, 0x80000000, 0, 0}
 
-
+//	private ulong[] bitboardArray = new ulong[] {0x200005000, 0, 0, 0x2000000, 0, 0x100000000, 0x4080020000000, 0, 0, 0x8000000000, 0, 0x80000000, 0, 0};
 
 	//private ulong[] bitboardArray = new ulong[] {0x200005000, 0, 0, 0x2000000, 0, 0x100000000, 0x4080020000000, 0, 0, 0x8000000000, 0, 0x80000000, 0};
 
+
+//	// Regular game
 	private ulong[] bitboardArray = new ulong[] {0xff00, 0x42, 0x24, 0x81, 0x8, 0x10,
 		0xff000000000000, 0x4200000000000000, 0x2400000000000000, 0x8100000000000000, 0x800000000000000, 0x1000000000000000, 0x1e, 0};
 
-
-
+//	// broken case
+//	private ulong[] bitboardArray =
+//	new ulong[] {
+//		0x1805e000,
+//		0x1000,
+//		0x4,
+//		0x81,
+//		0x10000000000,
+//		0x10,
+//		0xb5400000000000,
+//		0x200000,
+//		0x40000000000000,
+//		0x2100000000000000,
+//		0x800000000,
+//		0x4000000000000000,
+//		0x1e,
+//		0
+//	}; 
 
 	private static ulong[][] hashValues = new ulong[12][];
 	private List<ulong> visitedHashes = new List<ulong> ();
@@ -1620,28 +1638,39 @@ public class GameController : MonoBehaviour{
 	private static int numberChecks;
 	private static ulong bishopCheckers;
 	private static ulong rookCheckers;
+	private static ulong captureMask;
 	private static ulong kingDangers;
+	private static uint kingPos;
 
-	private static void FindChecks(ulong[] bitboards, ulong occupancy){
+	private static int FindChecks(ulong[] bitboards, ulong occupancy){
+		
 		uint lsbIndex;
 		numberChecks = 0;
+		captureMask = 0;
 		kingDangers = 0;
+		rookCheckers = 0;
+		bishopCheckers = 0;
 		int turn = (int)bitboards [12] & 1;
 		ulong kingBoard = bitboards [5 + 6 * turn];
+		kingPos = leastSigLookup [((kingBoard & (~kingBoard + 1)) * debruijnleast) >> 58];
 		occupancy ^= kingBoard;
 
 		// pawn captures
 		if (turn == 0) {
 			// white
 			kingDangers |= ((bitboards [6] >> 9)&0x7f7f7f7f7f7f7f7f | (bitboards [6] >> 7)&0xfefefefefefefefe);
+			if ((kingDangers & kingBoard) != 0) {
+				captureMask = ((kingBoard << 9) & 0xfefefefefefefefe | (kingBoard >> 7) & 0x7f7f7f7f7f7f7f7f) & bitboards [6];
+				numberChecks++;
+			}
 		} else {
 			// black
 			kingDangers |= ((bitboards [0] << 9)&0xfefefefefefefefe | (bitboards [0] << 7)&0x7f7f7f7f7f7f7f7f);
+			if ((kingDangers & kingBoard) != 0) {
+				captureMask = ((kingBoard >> 9) & 0x7f7f7f7f7f7f7f7f | (kingBoard >> 7) & 0xfefefefefefefefe) & bitboards [0];
+				numberChecks++;
+			}
 		}
-		if ((kingDangers & kingBoard) != 0) {
-			numberChecks++;
-		}
-
 
 		// knights
 		ulong pieceBitBoard = bitboards[7-6*turn];
@@ -1653,12 +1682,15 @@ public class GameController : MonoBehaviour{
 		}
 		kingDangers |= pieceAttacks;
 		if ((pieceAttacks & kingBoard) != 0) {
+			captureMask |= knightMoves[kingPos] & bitboards [7-6*turn];
 			numberChecks++;
 		}
+
 
 		// opponent king
 		pieceBitBoard = bitboards [11-6*turn];
 		kingDangers |= kingMoves [leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58]];
+
 
 		// sliders
 		// bishops
@@ -1667,6 +1699,7 @@ public class GameController : MonoBehaviour{
 			lsbIndex = leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58];
 			pieceAttacks = magicBishopAttacks [lsbIndex] [((bishopPremasks [lsbIndex] & occupancy) * bishopMagics [lsbIndex]) >> bishopShifts [lsbIndex]];
 			if ((pieceAttacks & kingBoard) != 0) {
+				captureMask |= magicBishopAttacks [kingPos] [((bishopPremasks [kingPos] & occupancy) * bishopMagics [kingPos]) >> bishopShifts [kingPos]] & bitboards [8 - 6 * turn];
 				numberChecks++;
 				bishopCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
 			}
@@ -1674,12 +1707,14 @@ public class GameController : MonoBehaviour{
 			pieceBitBoard &= pieceBitBoard - 1;
 		}
 
+
 		// rooks
 		pieceBitBoard = bitboards [9-6*turn];
 		while (pieceBitBoard != 0) {
 			lsbIndex = leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58];
 			pieceAttacks = magicRookAttacks [lsbIndex] [((rookPremasks [lsbIndex] & occupancy) * rookMagics [lsbIndex]) >> rookShifts [lsbIndex]];
 			if ((pieceAttacks & kingBoard) != 0) {
+				captureMask |= magicRookAttacks [kingPos] [((rookPremasks [kingPos] & occupancy) * rookMagics [kingPos]) >> rookShifts [kingPos]] & bitboards [9 - 6 * turn];
 				numberChecks++;
 				rookCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
 			}
@@ -1693,12 +1728,15 @@ public class GameController : MonoBehaviour{
 			lsbIndex = leastSigLookup [((pieceBitBoard & (~pieceBitBoard + 1)) * debruijnleast) >> 58];
 			pieceAttacks = magicBishopAttacks [lsbIndex] [((bishopPremasks [lsbIndex] & occupancy) * bishopMagics [lsbIndex]) >> bishopShifts [lsbIndex]];
 			if ((pieceAttacks & kingBoard) != 0) {
+				captureMask |= magicBishopAttacks [kingPos] [((bishopPremasks [kingPos] & occupancy) * bishopMagics [kingPos]) >> bishopShifts [kingPos]] & bitboards [10 - 6 * turn];
+
 				numberChecks++;
 				bishopCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
 			}
 			kingDangers |= pieceAttacks;
 			pieceAttacks = magicRookAttacks [lsbIndex] [((rookPremasks [lsbIndex] & occupancy) * rookMagics [lsbIndex]) >> rookShifts [lsbIndex]];
 			if ((pieceAttacks & kingBoard) != 0) {
+				captureMask |= magicRookAttacks [kingPos] [((rookPremasks [kingPos] & occupancy) * rookMagics [kingPos]) >> rookShifts [kingPos]] & bitboards [10 - 6 * turn];
 				numberChecks++;
 				rookCheckers |= pieceBitBoard & (~pieceBitBoard + 1);
 			}
@@ -1706,11 +1744,761 @@ public class GameController : MonoBehaviour{
 			pieceBitBoard &= pieceBitBoard - 1;
 		}
 
-		return;
+		return numberChecks;
 	}
 
+	static ulong sliderMask = 0;
+
+	private static List<uint> TrueLegalMoves(ulong[] bitboards){
+		List<uint> validMoves = new List<uint>(); 
+		List<uint> captureMoves = new List<uint>();
+		uint turn = (uint)bitboards [12] & 1;
+		ulong destinations = 0;
+		ulong pinBoard = 0xffffffffffffffff;
+//		ulong sliderMask, destinationBit, pieceBoard;
+		ulong destinationBit, pieceBoard;
+		sliderMask = 0;
+		uint capturedPiece, destinationIndex;
+		uint lsb;
+		ulong[] sidePieces = new ulong[] {bitboards [0] | bitboards [1] | bitboards [2] | bitboards [3] | bitboards [4] | bitboards [5], 
+			bitboards [6] | bitboards [7] | bitboards [8] | bitboards [9] | bitboards [10] | bitboards [11]
+		};
+		ulong occupancy = sidePieces [0] | sidePieces [1];
+
+		if (FindChecks (bitboards, occupancy) > 1) {
+			// must move king only
+			captureMask = 0;
+			sliderMask = 0;
+
+		} else if (numberChecks == 1) {
+			// must move king, block attack or capture. Be aware of pins and EP problems
+			// captureMask already generated, now need sliderMask
+			if (rookCheckers != 0) {
+				// rook slide check to block
+				sliderMask = magicRookAttacks [kingPos] [((rookPremasks [kingPos] & occupancy) * rookMagics [kingPos]) >> rookShifts [kingPos]];
+				lsb = leastSigLookup [(rookCheckers * debruijnleast) >> 58];
+				sliderMask &= magicRookAttacks [lsb] [((rookPremasks [lsb] & occupancy) * rookMagics [lsb]) >> rookShifts [lsb]];
+			} else if (bishopCheckers != 0) {
+				// bishop style check to block
+				sliderMask = magicBishopAttacks [kingPos] [((bishopPremasks [kingPos] & occupancy) * bishopMagics [kingPos]) >> bishopShifts [kingPos]];
+				lsb = leastSigLookup [(bishopCheckers * debruijnleast) >> 58];
+				sliderMask &= magicBishopAttacks [lsb] [((bishopPremasks [lsb] & occupancy) * bishopMagics [lsb]) >> bishopShifts [lsb]];
+
+			} else {
+				// not a sliding piece causing check
+				sliderMask = 0;
+			}
+
+		} else {
+			// can move normally
+			// generate castling here
+			captureMask = 0xffffffffffffffff;
+			sliderMask = 0xffffffffffffffff;
+			if (turn == 0) {
+				// castle left
+				if ((bitboards [3] & 0x1) != 0 && (occupancy & 0xe) == 0 && (bitboards [12] & 8) == 8 && (kingDangers & 12) == 0) {
+					captureMoves.Add (4 << 17 | 2 << 11 | 5 << 7 | 7 << 4 | 8); 
+				}
+				// castle right
+				if ((bitboards [3] & 0x80) != 0 && (occupancy & 0x60) == 0 && (bitboards [12] & 16) == 16 && (kingDangers & 96) == 0) {
+					captureMoves.Add (4 << 17 | 6 << 11 | 5 << 7 | 7 << 4 | 4); 
+				}
+			} else {
+				// castle left
+				if ((bitboards [9] & 0x100000000000000) != 0 && (occupancy & 0xe00000000000000) == 0 && (bitboards [12] & 0x2) == 0x2 && (kingDangers & 0xc00000000000000) == 0) {
+					captureMoves.Add (60 << 17 | 58 << 11 | 13 << 7 | 7 << 4 | 8); 
+				}
+				// castle right
+				if ((bitboards [9] & 0x8000000000000000) != 0 && (occupancy & 0x6000000000000000) == 0 && (bitboards [12] & 0x4) == 0x4 && (kingDangers & 0x6000000000000000) == 0) {
+					captureMoves.Add (60 << 17 | 62 << 11 | 13 << 7 | 7 << 4 | 4); 
+				}
+			}
+		}
 
 
+		if (numberChecks < 2) {
+			// Deal with Pinned pieces
+
+			// enemy bishops causing pins
+			ulong enemyBishops = bitboards[8-6*turn] | bitboards[10-6*turn];
+			ulong attacks;
+			ulong overlap;
+			ulong trapped;
+			while (enemyBishops != 0) {
+				lsb = leastSigLookup [((enemyBishops & (~enemyBishops + 1)) * debruijnleast) >> 58];
+				attacks = magicBishopAttacks [lsb] [((bishopPremasks [lsb] & (sidePieces[1-turn]|bitboards[5+6*turn])) * bishopMagics [lsb]) >> bishopShifts [lsb]];
+				if ((attacks & bitboards [5 + 6 * turn]) != 0) {
+					// piece attacks king
+					// OVERLAP DOESNT INCLUDE ACTUAL PINNING PIECE
+					overlap = (attacks & magicBishopAttacks [kingPos] [((bishopPremasks [kingPos] & sidePieces[1-turn]) * bishopMagics [kingPos]) >> bishopShifts [kingPos]]);
+
+					// only one piece between king and pinner
+					if ((overlap & sidePieces[1-turn]) == 0 && (overlap & sidePieces[turn]) != 0) {
+						trapped = overlap & sidePieces[turn];
+						if ((trapped & (trapped - 1)) == 0) {
+							// THIS IS A PIN, overlap is now all valid positions to move to.
+							lsb = leastSigLookup [(trapped * debruijnleast) >> 58];
+//							overlap |= (ulong)1<<(int)lsb;
+							for (uint a = 6 * turn; a < 5 + 6 * turn; a++) {
+								if ((bitboards [a] & overlap) != 0) {
+									// piece removed from regular generation that occurs later
+	//								bitboards [a] &= ~overlap;
+									pinBoard ^= trapped;
+
+									// GENERATE MOVE FOR PIECE REGULARLY, MUST ALSO STAY WITHIN overlap AS WELL AS POSSIBLY captureMask AND slideMask
+									/// En passant still possible if pinner further away
+									///
+									/// HOPEFULLY COMPLETE
+									/// 
+									/// pawn capture, bishop/queen slide
+
+									//pawn
+									if (a - 6 * turn == 0) {
+										if (turn == 0) {
+											// regular capture
+											destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask & (((trapped << 7)&0x7f7f7f7f7f7f7f7f) | ((trapped <<9)&0xfefefefefefefefe));
+											if (destinations != 0) {
+												destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+												if ((destinations & bitboards [8]) != 0) {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  32);
+													if ((trapped & 0xff000000000000) != 0) {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32 | 1);
+													}
+												} else {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  64);
+													if ((trapped & 0xff000000000000) != 0) {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64 | 1);
+													}
+												}
+											}
+											// en passant
+
+											ulong EPTile = (ulong)1<<(int)((bitboards [12] & 0x7e0)>>5);
+											if (((((trapped << 7) & 0x7f7f7f7f7f7f7f7f) | ((trapped << 9) & 0xfefefefefefefefe)) & EPTile & overlap & sliderMask) != 0 && (bitboards [12] & 0x800) != 0) {
+												captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96);
+											}
+
+										} else {
+											destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask & (((trapped >>9)&0x7f7f7f7f7f7f7f7f) | ((trapped >>7)&0xfefefefefefefefe));
+											if (destinations != 0) {
+												destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+												if ((destinations & bitboards [2]) != 0) {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  32 | 1024);
+													if ((trapped & 0xff00) != 0) {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32 | 1025);
+													}
+												} else {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  64 | 1024);
+													if ((trapped & 0xff00) != 0) {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64 | 1025);
+													}
+												}
+											}
+											// en passant
+											ulong EPTile = (ulong)1<<(int)((bitboards [12] & 0x7e0)>>5);
+											if (((((trapped >>9) & 0x7f7f7f7f7f7f7f7f) | ((trapped >>7) & 0xfefefefefefefefe)) & EPTile & overlap & sliderMask) != 0 && (bitboards [12] & 0x800) != 0) {
+												captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 1120);
+											}
+										}
+									}
+									// bishop
+									else if (a-6*turn == 2){
+										destinations = overlap & (sliderMask|captureMask) & (~sidePieces[turn]);
+										while (destinations != 0) {
+											destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
+											validMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 112 | 1024 * turn);
+											destinations &= destinations - 1;
+										}
+										destinations = (enemyBishops & (~enemyBishops + 1))&captureMask;
+										if (destinations != 0) {
+											destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+											if ((destinations & bitboards [9 - 6 * turn]) != 0) {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 48 | 1024 * turn);
+											} else {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 64 | 1024 * turn);
+											}
+										}
+										// Queen
+									}else if (a-6*turn == 4){
+										destinations = overlap & (sliderMask|captureMask) & (~sidePieces[turn]);
+										while (destinations != 0) {
+											destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
+											validMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 112 | 1024 * turn);
+											destinations &= destinations - 1;
+										}
+										destinations = (enemyBishops & (~enemyBishops + 1))&captureMask;
+										if (destinations != 0) {
+											destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+											if ((destinations & bitboards [9 - 6 * turn]) != 0) {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 48 | 1024 * turn);
+											} else {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 64 | 1024 * turn);
+											}
+										}
+									}
+									break;
+								}
+							}
+						}
+					}
+				}
+				enemyBishops &= enemyBishops - 1;
+			}
+
+
+			ulong enemyRooks = bitboards[9-6*turn] | bitboards[10-6*turn];
+			while (enemyRooks != 0) {
+				lsb = leastSigLookup [((enemyRooks & (~enemyRooks + 1)) * debruijnleast) >> 58];
+				attacks = magicRookAttacks [lsb] [((rookPremasks [lsb] & (sidePieces[1-turn]|bitboards[5+6*turn])) * rookMagics [lsb]) >> rookShifts [lsb]];
+				if ((attacks & bitboards [5 + 6 * turn]) != 0) {
+					// piece attacks king
+					// OVERLAP DOESNT INCLUDE ACTUAL PINNING PIECE
+					overlap = (attacks & magicRookAttacks [kingPos] [((rookPremasks [kingPos] & sidePieces[1-turn]) * rookMagics [kingPos]) >> rookShifts [kingPos]]);
+
+					// only one piece between king and pinner
+					if ((overlap & sidePieces[1-turn]) == 0 && (overlap & sidePieces[turn]) != 0) {
+						trapped = overlap & sidePieces[turn];
+						if ((trapped & (trapped - 1)) == 0) {
+							// THIS IS A PIN
+							lsb = leastSigLookup [(trapped * debruijnleast) >> 58];
+//							overlap |= (ulong)1<<(int)lsb;
+							for (uint a = 6 * turn; a < 6 + 6 * turn; a++) {
+								if ((bitboards [a] & overlap) != 0) {
+									// piece removed from regular generation that occurs later
+//									bitboards [a] &= ~overlap;
+									pinBoard ^= trapped;
+									///    BELIEVE ROOK PINS NOW COMPLETE !!!!!!!!!!!
+									/// Only rook/queen moves or pawn pushes
+									 
+									//pawn
+									if (a - 6 * turn == 0) {
+										if (turn == 0 && ((trapped<<8)&occupancy) == 0 && ((trapped<<8)&overlap&sliderMask) != 0) {
+											if (((trapped<<16)&occupancy)==0 && (trapped & 0xff00) != 0 && ((trapped<<16)&sliderMask)!=0){
+												validMoves.Add (lsb << 17 | (lsb + 16) << 11 | 7 << 4);
+											}
+											if ((trapped & 0xff000000000000) != 0) {
+												captureMoves.Add (lsb << 17 | (lsb + 8) << 11 | 7 << 4 | 1);
+												captureMoves.Add (lsb << 17 | (lsb + 8) << 11 | 7 << 4);
+											}else{
+												validMoves.Add (lsb << 17 | (lsb + 8) << 11 | 7 << 4);
+											}
+										}else if (((trapped>>8)&occupancy) == 0 && ((trapped>>8)&overlap&sliderMask) != 0) {
+											if (((trapped>>16)&occupancy)==0 && (trapped & 0xff000000000000) != 0 && ((trapped>>16)&sliderMask)!=0){
+												validMoves.Add (lsb << 17 | (lsb - 16) << 11 |1024| 7 << 4);
+											}
+											if ((trapped & 0xff00) != 0) {
+												captureMoves.Add (lsb << 17 | (lsb - 8) << 11 |1024| 7 << 4 | 1);
+												captureMoves.Add (lsb << 17 | (lsb - 8) << 11 |1024| 7 << 4);
+											}else{
+												validMoves.Add (lsb << 17 | (lsb - 8) << 11 |1024| 7 << 4);
+											}
+										} 
+									}
+									// rook
+									else if (a-6*turn == 3){
+										destinations = overlap & (sliderMask|captureMask) & (~sidePieces[turn]);
+										while (destinations != 0) {
+											destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
+											validMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 112 | 1024 * turn);
+											destinations &= destinations - 1;
+										}
+										destinations = (enemyRooks & (~enemyRooks + 1))&captureMask;
+										if (destinations != 0) {
+											destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+											if ((destinations & bitboards [9 - 6 * turn]) != 0) {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 48 | 1024 * turn);
+											} else {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 64 | 1024 * turn);
+											}
+										}
+										// Queen
+									}else if (a-6*turn == 4){
+										destinations = overlap & (sliderMask|captureMask) & (~sidePieces[turn]);
+										while (destinations != 0) {
+											destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
+											validMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 112 | 1024 * turn);
+											destinations &= destinations - 1;
+										}
+										destinations = (enemyRooks & (~enemyRooks + 1))&captureMask;
+										if (destinations != 0) {
+											destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+											if ((destinations & bitboards [9 - 6 * turn]) != 0) {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 48 | 1024 * turn);
+											} else {
+												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 64 | 1024 * turn);
+											}
+										}
+									}
+									break;
+								}
+							}
+						}
+					}
+				}
+				enemyRooks &= enemyRooks - 1;
+			}
+
+			// all pins now removed
+
+			// Regular moves with capturemask and slidermask
+
+			// knights
+			pieceBoard= bitboards [1+6*turn] & pinBoard;
+			while (pieceBoard != 0) {
+
+				lsb = leastSigLookup [((pieceBoard & (~pieceBoard+1)) * debruijnleast) >> 58];
+				// lsbIndex = index of knight on board
+
+				destinations = knightMoves [lsb] & (~sidePieces[turn]) & (captureMask|sliderMask);
+				while (destinations  != 0) {
+					destinationBit = destinations & (~destinations+1);
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & sidePieces[1-turn]) != 0) {
+						if ((destinationBit & bitboards [6 - 6 * turn]) != 0) {
+							capturedPiece = 0;
+						} else if ((destinationBit & bitboards [7 - 6 * turn]) != 0) {
+							capturedPiece = 16;
+						} else if ((destinationBit & bitboards [8 - 6 * turn]) != 0) {
+							capturedPiece = 32;
+						} else if ((destinationBit & bitboards [9 - 6 * turn]) != 0) {
+							capturedPiece = 48;
+						} else {
+							capturedPiece = 64;
+						}
+						captureMoves.Add ( lsb << 17 | destinationIndex << 11 | 1 << 7 | capturedPiece | 1024*turn);
+					} else {
+						validMoves.Add (lsb << 17 | destinationIndex << 11 | 1 << 7 | 112 | 1024*turn);
+					}
+					destinations &= destinations - 1;
+				}
+				pieceBoard &= pieceBoard - 1;
+			}
+
+			// bishops
+			pieceBoard= bitboards [2+6*turn]& pinBoard;
+			while (pieceBoard != 0) {
+
+				lsb = leastSigLookup [((pieceBoard & (~pieceBoard+1)) * debruijnleast) >> 58];
+				// lsbIndex = index of piece on board
+				destinations = magicBishopAttacks[lsb][((bishopPremasks [lsb] & occupancy)*bishopMagics[lsb])>>bishopShifts[lsb]] & (~sidePieces[turn]) & (captureMask|sliderMask);
+				while (destinations  != 0) {
+					destinationBit = destinations & (~destinations+1);
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & sidePieces[1-turn]) != 0) {
+						if ((destinationBit & bitboards [6 - 6 * turn]) != 0) {
+							capturedPiece = 0;
+						} else if ((destinationBit & bitboards [7 - 6 * turn]) != 0) {
+							capturedPiece = 16;
+						} else if ((destinationBit & bitboards [8 - 6 * turn]) != 0) {
+							capturedPiece = 32;
+						} else if ((destinationBit & bitboards [9 - 6 * turn]) != 0) {
+							capturedPiece = 48;
+						} else {
+							capturedPiece = 64;
+						}
+						captureMoves.Add ( lsb << 17 | destinationIndex << 11 | 2<< 7 | capturedPiece | 1024*turn);
+					} else {
+						validMoves.Add (lsb << 17 | destinationIndex << 11 | 2 << 7 | 112 | 1024*turn);
+					}
+					destinations &= destinations - 1;
+				}
+				pieceBoard &= pieceBoard - 1;
+			}
+
+			// rooks
+			pieceBoard= bitboards [3+6*turn]& pinBoard;
+			while (pieceBoard != 0) {
+
+				lsb = leastSigLookup [((pieceBoard & (~pieceBoard+1)) * debruijnleast) >> 58];
+				// lsbIndex = index of piece on board
+				destinations = magicRookAttacks[lsb][((rookPremasks [lsb] & occupancy)*rookMagics[lsb])>>rookShifts[lsb]] & (~sidePieces[turn]) & (captureMask|sliderMask);
+				while (destinations  != 0) {
+					destinationBit = destinations & (~destinations+1);
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & sidePieces[1-turn]) != 0) {
+						if ((destinationBit & bitboards [6 - 6 * turn]) != 0) {
+							capturedPiece = 0;
+						} else if ((destinationBit & bitboards [7 - 6 * turn]) != 0) {
+							capturedPiece = 16;
+						} else if ((destinationBit & bitboards [8 - 6 * turn]) != 0) {
+							capturedPiece = 32;
+						} else if ((destinationBit & bitboards [9 - 6 * turn]) != 0) {
+							capturedPiece = 48;
+						} else {
+							capturedPiece = 64;
+						}
+						captureMoves.Add ( lsb << 17 | destinationIndex << 11 | 3 << 7 | capturedPiece | 1024*turn);
+					} else {
+						validMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 112 | 1024*turn);
+					}
+					destinations &= destinations - 1;
+				}
+				pieceBoard &= pieceBoard - 1;
+			}
+
+			// queens
+			pieceBoard= bitboards [4+6*turn]& pinBoard;
+			while (pieceBoard != 0) {
+
+				lsb = leastSigLookup [((pieceBoard & (~pieceBoard+1)) * debruijnleast) >> 58];
+				// lsbIndex = index of piece on board
+				destinations = magicBishopAttacks[lsb][((bishopPremasks [lsb] & occupancy)*bishopMagics[lsb])>>bishopShifts[lsb]];
+				destinations |= magicRookAttacks [lsb] [((rookPremasks [lsb] & occupancy) * rookMagics [lsb]) >> rookShifts [lsb]];
+				destinations &= (~sidePieces[turn]) & (captureMask|sliderMask);
+				while (destinations  != 0) {
+					destinationBit = destinations & (~destinations+1);
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & sidePieces[1-turn]) != 0) {
+						if ((destinationBit & bitboards [6 - 6 * turn]) != 0) {
+							capturedPiece = 0;
+						} else if ((destinationBit & bitboards [7 - 6 * turn]) != 0) {
+							capturedPiece = 16;
+						} else if ((destinationBit & bitboards [8 - 6 * turn]) != 0) {
+							capturedPiece = 32;
+						} else if ((destinationBit & bitboards [9 - 6 * turn]) != 0) {
+							capturedPiece = 48;
+						} else {
+							capturedPiece = 64;
+						}
+						captureMoves.Add ( lsb << 17 | destinationIndex << 11 | 4 << 7 | capturedPiece | 1024*turn);
+					} else {
+						validMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 112 | 1024*turn);
+					}
+					destinations &= destinations - 1;
+				}
+				pieceBoard &= pieceBoard - 1;
+			}
+
+
+			// pawns
+//			pieceBoard = bitboards [6*turn]& pinBoard;
+//			ulong lsbBoard, epBoard;
+//			while (pieceBoard != 0) {
+//				lsbBoard = (pieceBoard & (~pieceBoard + 1));
+//				lsb = leastSigLookup [(lsbBoard * debruijnleast) >> 58];
+//				// pushes
+//				if (turn == 0 && ((lsbBoard<<8)&occupancy) == 0 && ((lsbBoard<<8)&sliderMask) != 0) {
+//					if (((lsbBoard<<16)&occupancy)==0 && ((lsbBoard<<16)&sliderMask&0xff000000) !=0 ){
+//						validMoves.Add (lsb << 17 | (lsb + 16) << 11 | 7 << 4);
+//					}
+//					if ((lsbBoard & 0xff000000000000) != 0) {
+//						captureMoves.Add (lsb << 17 | (lsb + 8) << 11 | 7 << 4 | 1);
+//						captureMoves.Add (lsb << 17 | (lsb + 8) << 11 | 7 << 4);
+//					}else{
+//						validMoves.Add (lsb << 17 | (lsb + 8) << 11 | 7 << 4);
+//
+//					}
+//				}else if (turn == 1 && ((lsbBoard>>8)&occupancy) == 0 && ((lsbBoard>>8)&sliderMask)!=0) {
+//					if (((lsbBoard>>16)&occupancy)==0 && ((lsbBoard>>16)&sliderMask&0xff00000000)!=0){
+//						validMoves.Add (lsb << 17 | (lsb - 16) << 11 |1024| 7 << 4);
+//					}
+//					if ((lsbBoard & 0xff00) != 0) {
+//						captureMoves.Add (lsb << 17 | (lsb - 8) << 11 |1024| 7 << 4 | 1);
+//						captureMoves.Add (lsb << 17 | (lsb - 8) << 11 |1024| 7 << 4);
+//					}else{
+//						validMoves.Add (lsb << 17 | (lsb - 8) << 11 |1024| 7 << 4);
+//					}
+//				}
+//				// captures
+//				if (turn == 0) {
+//					destinations = sidePieces[1-turn] & captureMask & (((lsbBoard << 7)&0x7f7f7f7f7f7f7f7f) | ((lsbBoard <<9)&0xfefefefefefefefe));
+//					while (destinations  != 0) {
+//						destinationBit = destinations & (~destinations+1);
+//						destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//				
+//						if ((destinationBit & bitboards [6 ]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [7 ]) != 0) {
+//							capturedPiece = 16;
+//						} else if ((destinationBit & bitboards [8 ]) != 0) {
+//							capturedPiece = 32;
+//						} else if ((destinationBit & bitboards [9 ]) != 0) {
+//							capturedPiece = 48;
+//						} else {
+//							capturedPiece = 64;
+//						}
+//						captureMoves.Add ( lsb << 17 | destinationIndex << 11 | capturedPiece);
+//						if ((lsbBoard & 0xff000000000000) != 0) {
+//							captureMoves.Add ( lsb << 17 | destinationIndex << 11 | capturedPiece| 1);
+//						}
+//						destinations &= destinations - 1;
+//					}
+//					// en passant
+//					epBoard = (ulong)1<<(int)((bitboards [12] & 0x7e0)>>5);
+////		
+//					if ((bitboards [12] & 0x800) != 0 && ((((lsbBoard << 7) & 0x7f7f7f7f7f7f7f7f) | ((lsbBoard << 9) & 0xfefefefefefefefe)) & epBoard & sliderMask) != 0 && ((epBoard>>8) & captureMask)!= 0) {
+//						bitboards [0] ^= epBoard | lsbBoard;
+//						bitboards [6] ^= epBoard >> 8;
+//						if ((magicBishopAttacks[kingPos][((bishopPremasks [kingPos] & occupancy)*bishopMagics[kingPos])>>bishopShifts[kingPos]] & (bitboards[8]|bitboards[10])) == 0
+//							&& (magicRookAttacks[kingPos][((rookPremasks [kingPos] & occupancy)*rookMagics[kingPos])>>rookShifts[kingPos]] & (bitboards[9]|bitboards[10])) == 0){
+//							captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96);
+//						}
+//						bitboards [0] ^= epBoard | lsbBoard;
+//						bitboards [6] ^= epBoard >> 8;
+//					}
+//
+//
+//				} else {
+//					destinations = sidePieces[1-turn] & captureMask & (((lsbBoard >>9)&0x7f7f7f7f7f7f7f7f) | ((lsbBoard >>7)&0xfefefefefefefefe));
+//					while (destinations  != 0) {
+//						destinationBit = destinations & (~destinations+1);
+//						destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//
+//						if ((destinationBit & bitboards [0]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [1]) != 0) {
+//							capturedPiece = 16;
+//						} else if ((destinationBit & bitboards [2]) != 0) {
+//							capturedPiece = 32;
+//						} else if ((destinationBit & bitboards [3]) != 0) {
+//							capturedPiece = 48;
+//						} else {
+//							capturedPiece = 64;
+//						}
+//						captureMoves.Add ( lsb << 17 | destinationIndex << 11 | capturedPiece|1024);
+//						if ((lsbBoard & 0xff00) != 0) {
+//							captureMoves.Add ( lsb << 17 | destinationIndex << 11 | capturedPiece| 1);
+//						}
+//						destinations &= destinations - 1;
+//					}
+//					// en passant
+//					epBoard = (ulong)1<<(int)((bitboards [12] & 0x7e0)>>5);
+//					//		
+//					if ((bitboards [12] & 0x800) != 0 && ((((lsbBoard >>9) & 0x7f7f7f7f7f7f7f7f) | ((lsbBoard >>7) & 0xfefefefefefefefe)) & epBoard & sliderMask) != 0 && ((epBoard<<8) & captureMask)!= 0) {
+//						bitboards [6] ^= epBoard | lsbBoard;
+//						bitboards [0] ^= epBoard << 8;
+//						if ((magicBishopAttacks[kingPos][((bishopPremasks [kingPos] & occupancy)*bishopMagics[kingPos])>>bishopShifts[kingPos]] & (bitboards[2]|bitboards[4])) == 0
+//							&& (magicRookAttacks[kingPos][((rookPremasks [kingPos] & occupancy)*rookMagics[kingPos])>>rookShifts[kingPos]] & (bitboards[3]|bitboards[4])) == 0){
+//							captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 1120);
+//						}
+//						bitboards [6] ^= epBoard | lsbBoard;
+//						bitboards [0] ^= epBoard << 8;
+//					}
+//				}
+//				pieceBoard &= pieceBoard - 1;
+//			}
+
+
+			// NEW PAWN METHOD
+			if (turn == 0) {
+				ulong pawnBoard = (bitboards [0] & pinBoard);
+				pieceBoard = (pawnBoard << 8) & ~occupancy;
+				ulong furtherBoard = (pieceBoard << 8) & ~occupancy & 0xff000000 & sliderMask;
+				pieceBoard &= sliderMask;
+				while (pieceBoard != 0) {
+					destinationIndex = leastSigLookup [((pieceBoard & (~pieceBoard + 1)) * debruijnleast) >> 58];
+
+					if (destinationIndex > 55) {
+						captureMoves.Add ((destinationIndex - 8) << 17 | (destinationIndex) << 11 | 7 << 4 | 1);
+						captureMoves.Add ((destinationIndex - 8) << 17 | (destinationIndex) << 11 | 7 << 4);
+					} else {
+						validMoves.Add ((destinationIndex - 8) << 17 | (destinationIndex) << 11 | 7 << 4);
+					}
+					pieceBoard &= pieceBoard - 1;
+				}
+
+				while (furtherBoard != 0) {
+					destinationIndex = leastSigLookup [((furtherBoard & (~furtherBoard + 1)) * debruijnleast) >> 58];
+					validMoves.Add ((destinationIndex - 16) << 17 | (destinationIndex) << 11 | 7 << 4);
+					furtherBoard &= furtherBoard - 1;
+				}
+
+				// capture
+				pieceBoard = (pawnBoard << 7) & 0x7f7f7f7f7f7f7f7f & sidePieces[1] & captureMask;
+				while (pieceBoard != 0) {
+					destinationBit = (pieceBoard & (~pieceBoard + 1));
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & bitboards [6]) != 0) {
+													capturedPiece = 0;
+												} else if ((destinationBit & bitboards [7]) != 0) {
+													capturedPiece = 16;
+												} else if ((destinationBit & bitboards [8]) != 0) {
+													capturedPiece = 32;
+												} else if ((destinationBit & bitboards [9]) != 0) {
+													capturedPiece = 48;
+												} else {
+													capturedPiece = 64;
+												}
+					if (destinationIndex > 55) {
+						captureMoves.Add ((destinationIndex - 7) << 17 | (destinationIndex) << 11 | capturedPiece | 1);
+					}
+					captureMoves.Add ((destinationIndex - 7) << 17 | (destinationIndex) << 11 | capturedPiece);
+					pieceBoard &= pieceBoard - 1;
+				}
+
+				// capture
+				pieceBoard = (pawnBoard << 9) & 0xfefefefefefefefe & sidePieces[1] & captureMask;
+				while (pieceBoard != 0) {
+					destinationBit = (pieceBoard & (~pieceBoard + 1));
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & bitboards [6]) != 0) {
+						capturedPiece = 0;
+					} else if ((destinationBit & bitboards [7]) != 0) {
+						capturedPiece = 16;
+					} else if ((destinationBit & bitboards [8]) != 0) {
+						capturedPiece = 32;
+					} else if ((destinationBit & bitboards [9]) != 0) {
+						capturedPiece = 48;
+					} else {
+						capturedPiece = 64;
+					}
+					if (destinationIndex > 55) {
+						captureMoves.Add ((destinationIndex - 9) << 17 | (destinationIndex) << 11 |capturedPiece | 1);
+					}
+					captureMoves.Add ((destinationIndex - 9) << 17 | (destinationIndex) << 11 |capturedPiece);
+					pieceBoard &= pieceBoard - 1;
+				}
+
+	//			ulong epBoard = ((ulong)1 << (int)((bitboards [12] & 0x7e0) >> 5)) & sliderMask;
+				ulong epBoard = ((ulong)1 << (int)((bitboards [12] & 0x7e0) >> 5));
+					if ((bitboards [12] & 0x800) != 0 && ((epBoard >> 9) & 0x7f7f7f7f7f7f7f7f & pawnBoard) != 0 && (((epBoard >> 8) & captureMask) != 0 || (epBoard & sliderMask)!=0)) {
+					occupancy ^= epBoard | (epBoard >> 8) | (epBoard >> 9);
+					if ((magicBishopAttacks [kingPos] [((bishopPremasks [kingPos] & occupancy) * bishopMagics [kingPos]) >> bishopShifts [kingPos]] & (bitboards [8] | bitboards [10])) == 0
+					    && (magicRookAttacks [kingPos] [((rookPremasks [kingPos] & occupancy) * rookMagics [kingPos]) >> rookShifts [kingPos]] & (bitboards [9] | bitboards [10])) == 0) {
+						captureMoves.Add (((uint)((bitboards [12] & 0x7e0) >> 5) - 9) << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96);
+					}
+					occupancy ^= epBoard | (epBoard >> 8) | (epBoard >> 9);
+				}
+				if ((bitboards [12] & 0x800) != 0 && ((epBoard >> 7) & 0xfefefefefefefefe & pawnBoard) != 0 && (((epBoard >> 8) & captureMask) != 0 || (epBoard & sliderMask)!=0)) {
+					occupancy ^= epBoard | (epBoard >> 8) | (epBoard >> 7);
+					if ((magicBishopAttacks [kingPos] [((bishopPremasks [kingPos] & occupancy) * bishopMagics [kingPos]) >> bishopShifts [kingPos]] & (bitboards [8] | bitboards [10])) == 0
+					    && (magicRookAttacks [kingPos] [((rookPremasks [kingPos] & occupancy) * rookMagics [kingPos]) >> rookShifts [kingPos]] & (bitboards [9] | bitboards [10])) == 0) {
+						captureMoves.Add (((uint)((bitboards [12] & 0x7e0) >> 5) - 7) << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96);
+					}
+					occupancy ^= epBoard | (epBoard >> 8) | (epBoard >> 7);
+				}
+
+
+			} else {
+
+
+
+				ulong pawnBoard = (bitboards [6] & pinBoard);
+				pieceBoard = (pawnBoard >> 8)&~occupancy;
+				ulong furtherBoard = (pieceBoard >> 8) & ~occupancy & 0xff00000000 & sliderMask;
+				pieceBoard &= sliderMask;
+
+				while (pieceBoard != 0) {
+					destinationIndex = leastSigLookup [((pieceBoard & (~pieceBoard+1)) * debruijnleast) >> 58];
+					if (destinationIndex < 8) {
+						captureMoves.Add ((destinationIndex + 8) << 17 | (destinationIndex) << 11 | 7 << 4 | 1025);
+						captureMoves.Add ((destinationIndex + 8) << 17 | (destinationIndex) << 11 | 7 << 4|1024);
+					} else {
+						validMoves.Add ((destinationIndex + 8) << 17 | (destinationIndex) << 11 | 7 << 4|1024);
+					}
+					pieceBoard &= pieceBoard - 1;
+				}
+
+
+
+				while (furtherBoard != 0) {
+					destinationIndex = leastSigLookup [((furtherBoard & (~furtherBoard+1)) * debruijnleast) >> 58];
+					validMoves.Add ((destinationIndex + 16) << 17 | (destinationIndex) << 11 | 7 << 4|1024);
+					furtherBoard &= furtherBoard - 1;
+				}
+
+				// capture
+				pieceBoard = (pawnBoard >>9)& 0x7f7f7f7f7f7f7f7f & sidePieces[0]&captureMask;
+				while (pieceBoard != 0) {
+					destinationBit = (pieceBoard & (~pieceBoard + 1));
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & bitboards [0]) != 0) {
+						capturedPiece = 0;
+					} else if ((destinationBit & bitboards [1]) != 0) {
+						capturedPiece = 16;
+					} else if ((destinationBit & bitboards [2]) != 0) {
+						capturedPiece = 32;
+					} else if ((destinationBit & bitboards [3]) != 0) {
+						capturedPiece = 48;
+					} else {
+						capturedPiece = 64;
+					}
+					if (destinationIndex <0) {
+						captureMoves.Add ((destinationIndex +9) << 17 | (destinationIndex) << 11 | capturedPiece | 1025);
+					}
+					captureMoves.Add ((destinationIndex +9) << 17 | (destinationIndex) << 11 | capturedPiece|1024);
+					pieceBoard &= pieceBoard - 1;
+				}
+
+				// capture
+				pieceBoard = (pawnBoard >>7)& 0xfefefefefefefefe & sidePieces[0]&captureMask;
+				while (pieceBoard != 0) {
+					destinationBit = (pieceBoard & (~pieceBoard + 1));
+					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+					if ((destinationBit & bitboards [0]) != 0) {
+						capturedPiece = 0;
+					} else if ((destinationBit & bitboards [1]) != 0) {
+						capturedPiece = 16;
+					} else if ((destinationBit & bitboards [2]) != 0) {
+						capturedPiece = 32;
+					} else if ((destinationBit & bitboards [3]) != 0) {
+						capturedPiece = 48;
+					} else {
+						capturedPiece = 64;
+					}
+					if (destinationIndex < 8) {
+						captureMoves.Add ((destinationIndex + 7) << 17 | (destinationIndex) << 11 | capturedPiece | 1025);
+					}
+					captureMoves.Add ((destinationIndex +7) << 17 | (destinationIndex) << 11 |capturedPiece|1024);
+					pieceBoard &= pieceBoard - 1;
+				}
+
+				ulong epBoard = ((ulong)1<<(int)((bitboards [12] & 0x7e0)>>5));
+				if ((bitboards [12] & 0x800) != 0 && ((epBoard <<7) & 0x7f7f7f7f7f7f7f7f & pawnBoard) != 0 && (((epBoard << 8) & captureMask) != 0 || (epBoard & sliderMask)!=0)) {
+					occupancy ^= epBoard | (epBoard << 8) | (epBoard <<7);
+					if ((magicBishopAttacks[kingPos][((bishopPremasks [kingPos] & occupancy)*bishopMagics[kingPos])>>bishopShifts[kingPos]] & (bitboards[8]|bitboards[10])) == 0
+						&& (magicRookAttacks[kingPos][((rookPremasks [kingPos] & occupancy)*rookMagics[kingPos])>>rookShifts[kingPos]] & (bitboards[9]|bitboards[10])) == 0){
+						captureMoves.Add (((uint)((bitboards [12] & 0x7e0)>>5)+7) << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96|1024);
+					}
+					occupancy ^= epBoard | (epBoard << 8) | (epBoard <<7);
+				}
+				if ((bitboards [12] & 0x800) != 0 && ((epBoard << 9) & 0xfefefefefefefefe & pawnBoard) != 0 && (((epBoard << 8) & captureMask) != 0 || (epBoard & sliderMask)!=0)) {
+					occupancy ^= epBoard | (epBoard << 8) | (epBoard << 9);
+					if ((magicBishopAttacks [kingPos] [((bishopPremasks [kingPos] & occupancy) * bishopMagics [kingPos]) >> bishopShifts [kingPos]] & (bitboards [8] | bitboards [10])) == 0
+					    && (magicRookAttacks [kingPos] [((rookPremasks [kingPos] & occupancy) * rookMagics [kingPos]) >> rookShifts [kingPos]] & (bitboards [9] | bitboards [10])) == 0) {
+						captureMoves.Add (((uint)((bitboards [12] & 0x7e0) >> 5) + 9) << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96|1024);
+					}
+					occupancy ^= epBoard | (epBoard << 8) | (epBoard << 9);
+				}
+
+
+
+
+			}
+		}
+
+
+
+		// Always valid king moves
+		destinations = kingMoves[leastSigLookup [(bitboards[5+6*turn] * debruijnleast) >> 58]] & ~kingDangers & ~sidePieces[turn];
+		destinationIndex = 0;
+		lsb = leastSigLookup [(bitboards[5+6*turn] * debruijnleast) >> 58];
+		while (destinations  != 0) {
+			destinationBit = destinations & (~destinations+1);
+			destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+			if ((destinationBit & sidePieces[1-turn]) != 0) {
+				if ((destinationBit & bitboards [6 - 6 * turn]) != 0) {
+					capturedPiece = 0;
+				} else if ((destinationBit & bitboards [7 - 6 * turn]) != 0) {
+					capturedPiece = 16;
+				} else if ((destinationBit & bitboards [8 - 6 * turn]) != 0) {
+					capturedPiece = 32;
+				} else if ((destinationBit & bitboards [9 - 6 * turn]) != 0) {
+					capturedPiece = 48;
+				} else {
+					capturedPiece = 64;
+				}
+				captureMoves.Add ( lsb << 17 | destinationIndex << 11 | 5 << 7 | capturedPiece | 1024*turn);
+			} else {
+				validMoves.Add (lsb << 17 | destinationIndex << 11 | 5 << 7 | 112 | 1024*turn);
+			}
+			destinations &= destinations - 1;
+		}
+
+		captureMoves.AddRange (validMoves);
+
+		return captureMoves;
+	}
 
 
 
@@ -2683,6 +3471,8 @@ public class GameController : MonoBehaviour{
 
 
 //	System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
+
+
 	private bool stopThread;
 	private uint[] PV;
 	private uint[] oldPV;
@@ -2732,18 +3522,17 @@ public class GameController : MonoBehaviour{
 				}
 			}
 			bestMoves = new List<uint> { move };
-
+			Debug.Log ("opening");
 		} else {
+
 //			NegaMax (bitboardArray, maxDepth, -100000, 100000,turn);
 
-
+			// CURRENT TRUE PROCESS
 			PV = new uint[4];
 			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false);
 
-//			while (searchDepth < maxDepth && PV[searchDepth-1] != 0 && !stopThread) {
 			while (searchDepth < maxDepth && PV[searchDepth-1] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
-//				Debug.Log ("inbetween: " + bestMoves [0].ToString ());
 				searchDepth += 2;
 				oldPV = (uint[])PV.Clone ();
 				PV = new uint[searchDepth * searchDepth];
@@ -2752,15 +3541,24 @@ public class GameController : MonoBehaviour{
 			if (PV [0] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
 			}
-			// CURRENT WORKING LINE
 //			NegaMax (bitboardArray, maxDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn));
 
 //			Debug.Log (bestMoves [0]);
 //			// TESTING ONLY
 //			bestMoves = new List<uint> {new uint[] {7558384,6890608 ,6757488,4777072,5561488,3630320 }[numberOfMoves/2]};
-//		Debug.Log (Perft(bitboardArray,maxDepth));
-//		Debug.Log (checksFound);
-//			// }
+//		
+
+//			checksFound = 0;
+//			Debug.Log("Test:");
+//			stopWatch.Start ();
+//			Debug.Log (TestPerft(bitboardArray,5));
+//			Debug.Log (checksFound);
+//
+//
+//
+//			stopWatch.Stop();
+//			Debug.Log (stopWatch.ElapsedMilliseconds);
+//
 		}
 		threadComplete = true; 
 		return;
@@ -2839,110 +3637,148 @@ public class GameController : MonoBehaviour{
 		}
 	}
 
-//	int checksFound = 0;
+	int checksFound = 0;
 
-//	private int Perft(ulong[] bitboards, int depthLeft){
-//		if (depthLeft == maxDepth) {
-//			checksFound = 0;
-//		}
-//		if (depthLeft == 0) {
-//			bitboards [12] ^= 1;
-//			if (CanTakeKing (bitboards)) {
-//				checksFound += 1;
-//			}
-//			return 1;
-//		}
-//		int perft = 0;
-//
-//		// find moves
-//		List<uint> validMoves = allValidMoves(bitboards);
-//		ulong gameState = bitboards [12];
-//		foreach (uint move in validMoves){
-//			MakeMove (bitboards, move);
-//			if(!CanTakeKing(bitboards)){
-//				// actually a valid move
-//				perft += Perft(bitboards,depthLeft-1);
-//			}
-//			bitboards [12] = gameState;
-//			UnMakeMove (bitboards, move);
-//		}
-//		return perft;
-//	}
+	private int TestPerft(ulong[] bitboards, int depthLeft){
+
+		if (depthLeft == 0) {
+			bitboards [12] ^= 1;
+			if (CanTakeKing (bitboards)) {
+				checksFound += 1;
+			}
+			return 1;
+		}
+		int perft = 0;
+
+		// Testing Results
+		List<uint> validMoves = TrueLegalMoves(bitboards);
+		ulong gameState = bitboards [12];
+		foreach (uint move in validMoves){
+			MakeMove (bitboards, move);
+			// assumed to be a valid move
+			perft += Perft(bitboards,depthLeft-1);
+
+			bitboards [12] = gameState;
+			UnMakeMove (bitboards, move);
+		}
+
+
+		return perft;
+	}
+
+	private int Perft(ulong[] bitboards, int depthLeft){
+
+		if (depthLeft == 0) {
+			bitboards [12] ^= 1;
+			if (CanTakeKing (bitboards)) {
+				checksFound += 1;
+			}
+			return 1;
+		}
+		int perft = 0;
+
+		// Reliable results:
+				List<uint> validMoves = allValidMoves(bitboards);
+				ulong gameState = bitboards [12];
+				foreach (uint move in validMoves){
+					MakeMove (bitboards, move);
+					if(!CanTakeKing(bitboards)){
+						// actually a valid move
+						perft += Perft(bitboards,depthLeft-1);
+					}
+					bitboards [12] = gameState;
+					UnMakeMove (bitboards, move);
+				}
+			
+
+
+		return perft;
+	}
 
 
 	// THIS ONE ACTUALLY WORKS!!! --- BACKUP PROCESS ---
-//	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn){
-//		if (depthLeft == 0) {
-//			return (pieceVals.FullEvaluate ((ulong[])mainboard.Clone()) * (1-2*turn));
-//		}
-//		List<uint> childNodes = allValidMoves(mainboard);
-//		int bestValue = -1000000;
-//		if (depthLeft == maxDepth) {
-//			bestValue = -1000005;
-//		}
-//		foreach (uint childMove in childNodes) {
-//			ulong[] child = (ulong[])mainboard.Clone ();
-//			MakeMove (child, childMove);
-//			if (!CanTakeKing (child)) {
-//				int value = -NegaMax (child, depthLeft - 1, -beta, -alpha, 1 - turn);
-//
-//				if (value > bestValue) {
-//					bestValue = value;
-//					if (depthLeft == maxDepth) {
-//						bestMoves = new List<uint> { childMove };
-//					}
-//				}
-//				if (value > alpha) {
-//					alpha = value;
-//				}
-//				if (alpha >= beta){
-//					break;
-//				}
-//			}
-//		}
-//		return bestValue;
-//	}
 
-	// UNMAKE MOVE AND CARRIED SCORE - UPDATED BACKUP
-//	private int NegaMax(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue){
+	// Principle variation
+//	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
 //		bool canMove = false;
-//		if (depthLeft == 0) {
+//		int value;
+//
+//		if (depthLeft == 0 || stopThread) {
 //			return baseValue;
 //		}
 //		List<uint> childNodes = allValidMoves(mainboard);
+//		ulong gameState = mainboard [12];
 //
 //		int bestValue = -1000000;
 //		if (depthLeft == maxDepth) {
 //			bestValue = -1000005;
 //		}
-//		ulong gameState = mainboard [12];
+//
+//		if (isPV) {
+//			
+//			uint move = oldPV [searchDepth - depthLeft];
+//			if (childNodes.Contains (move)) {
+//				childNodes.Remove (move);
+//				MakeMove (mainboard, move);
+//				canMove = true;
+//				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
+//					value = 0;
+//				} else {
+//					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (move), true);
+//				}
+//
+//				mainboard [12] = gameState;
+//				UnMakeMove (mainboard, move);
+//
+//				if (value > bestValue) {
+//					bestValue = value;
+//					// if broken, set PV here
+//				}
+//				if (value > alpha && !stopThread) {
+//					// set PV on alpha change
+//					alpha = value;
+//					for (int i = 0; i < depthLeft - 1; i++) {
+//						PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
+//					}
+//					PV [searchDepth * (searchDepth - depthLeft)] = move;
+//				}
+//				if (alpha >= beta) {
+//					return alpha;
+//				}
+//			}
+//		}
+//
 //		foreach (uint childMove in childNodes) {
 //			MakeMove (mainboard, childMove);
 //			if (!CanTakeKing (mainboard)) {
 //				canMove = true;
-//				int value;
-//				if (cantRepeat.Contains (mainboard [13]) || mainboard[12] >= 0x64000) {
+//				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 //					value = 0;
 //				} else {
-//					value = -NegaMax (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - pieceVals.AdjustScore (childMove));
+//					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
 //				}
+//				mainboard [12] = gameState;
+//				UnMakeMove (mainboard, childMove);
+//
 //				if (value > bestValue) {
 //					bestValue = value;
-//					if (depthLeft == maxDepth) {
-//						bestMoves = new List<uint> { childMove };
-//					}
+//					// set here if error
 //				}
-//				if (value > alpha) {
+//				if (value > alpha && !stopThread) {
 //					alpha = value;
+//					// set PV here
+//					for (int i = 0; i < depthLeft - 1; i++) {
+//						PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
+//					}
+//					PV [searchDepth * (searchDepth - depthLeft)] = childMove;
 //				}
-//				if (alpha >= beta){
-//					mainboard [12] = gameState;
-//					UnMakeMove (mainboard, childMove);
+//				if (alpha >= beta) {
 //					break;
 //				}
+//			} else {
+//				mainboard [12] = gameState;
+//				UnMakeMove (mainboard, childMove);
 //			}
-//			mainboard [12] = gameState;
-//			UnMakeMove (mainboard, childMove);
 //		}
 //		if (!canMove) {
 //			mainboard [12] ^= 1;
@@ -2957,9 +3793,7 @@ public class GameController : MonoBehaviour{
 //		return bestValue;
 //	}
 
-
-
-	// Principle variation
+	// Just Legal Moves
 	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
 		bool canMove = false;
 		int value;
@@ -2967,7 +3801,9 @@ public class GameController : MonoBehaviour{
 		if (depthLeft == 0 || stopThread) {
 			return baseValue;
 		}
-		List<uint> childNodes = allValidMoves(mainboard);
+
+		List<uint> childNodes = TrueLegalMoves(mainboard);
+
 		ulong gameState = mainboard [12];
 
 		int bestValue = -1000000;
@@ -2976,7 +3812,7 @@ public class GameController : MonoBehaviour{
 		}
 
 		if (isPV) {
-			
+
 			uint move = oldPV [searchDepth - depthLeft];
 			if (childNodes.Contains (move)) {
 				childNodes.Remove (move);
@@ -3011,34 +3847,28 @@ public class GameController : MonoBehaviour{
 
 		foreach (uint childMove in childNodes) {
 			MakeMove (mainboard, childMove);
-			if (!CanTakeKing (mainboard)) {
-				canMove = true;
-				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
-					value = 0;
-				} else {
-					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
-				}
-				mainboard [12] = gameState;
-				UnMakeMove (mainboard, childMove);
-
-				if (value > bestValue) {
-					bestValue = value;
-					// set here if error
-				}
-				if (value > alpha && !stopThread) {
-					alpha = value;
-					// set PV here
-					for (int i = 0; i < depthLeft - 1; i++) {
-						PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
-					}
-					PV [searchDepth * (searchDepth - depthLeft)] = childMove;
-				}
-				if (alpha >= beta) {
-					break;
-				}
+			canMove = true;
+			if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
+				value = 0;
 			} else {
-				mainboard [12] = gameState;
-				UnMakeMove (mainboard, childMove);
+				value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
+			}
+			mainboard [12] = gameState;
+			UnMakeMove (mainboard, childMove);
+
+			if (value > bestValue) {
+				bestValue = value;
+			}
+			if (value > alpha && !stopThread) {
+				alpha = value;
+				// set PV here
+				for (int i = 0; i < depthLeft - 1; i++) {
+					PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
+				}
+				PV [searchDepth * (searchDepth - depthLeft)] = childMove;
+			}
+			if (alpha >= beta) {
+				break;
 			}
 		}
 		if (!canMove) {
@@ -3053,6 +3883,7 @@ public class GameController : MonoBehaviour{
 		}
 		return bestValue;
 	}
+
 
 
 	private static bool CanTakeKing(ulong[] bitboards){
