@@ -2503,660 +2503,660 @@ public class GameController : MonoBehaviour{
 
 
 
-	private static List<uint> allValidMoves(ulong[] bitboards){
-		bool insertStart = false;
-		List<uint> validMoves = new List<uint>(); 
-		List<uint> captureMoves = new List<uint>();
-		ulong whitePieces = bitboards [0] | bitboards [1] | bitboards [2] | bitboards [3] | bitboards [4] | bitboards [5];
-		ulong blackPieces = bitboards [6] | bitboards [7] | bitboards [8] | bitboards [9] | bitboards [10] | bitboards [11];
-		ulong occupied = whitePieces | blackPieces;
-		uint capturedPiece;
-		ulong destinations;
-		ulong gameState = bitboards [12];
-
-		// white turn
-		if ((gameState & 1) == 0) {
-			
-			// knights
-			uint lsbIndex = 0;
-			ulong knightBitBoard = bitboards [1];
-			while (knightBitBoard != 0) {
-				
-				lsbIndex = leastSigLookup [((knightBitBoard & (~knightBitBoard+1)) * debruijnleast) >> 58];
-				// lsbIndex = index of knight on board
-
-				destinations = knightMoves [lsbIndex] & (~whitePieces);
-				uint destinationIndex = 0;
-				while (destinations  != 0) {
-					ulong destinationBit = destinations & (~destinations+1);
-					if ((destinationBit & blackPieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [6]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [7]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [8]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [9]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [10]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [11]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add ( lsbIndex << 17 | destinationIndex << 11 | 1 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 1 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-				knightBitBoard &= knightBitBoard - 1;
-			}
-
-			// king
-			// commented to avoid stack
-			ulong kingBitBoard = bitboards [5];
-			ulong[] switchTurn = (ulong[])bitboards.Clone ();
-			switchTurn [12] ^= 1;
-			if (kingBitBoard == 0x10 && !CanTakeKing(switchTurn)) {
-				// castling left
-				if ((bitboards [3] & 0x1)!=0 && (occupied & 0xe)==0 && (gameState & 0x8)==0x8) {
-					ulong[] boardClone = (ulong[])bitboards.Clone ();
-					MakeMove (boardClone, 4 << 17 | 3 << 11 | 5 << 7 | 7 << 4);
-					if (!CanTakeKing (boardClone)) {
-						captureMoves.Add (4 << 17 | 2 << 11 | 5 << 7 | 7 << 4 | 8);
-					}
-				}
-				// castling right
-				if ((bitboards [3] & 0x80)!=0 && (occupied & 0x60)==0 && (gameState & 0x10)==0x10) {
-					ulong[] boardClone = (ulong[])bitboards.Clone ();
-					MakeMove (boardClone, 4 << 17 | 5 << 11 | 5 << 7 | 7 << 4);
-					if (!CanTakeKing (boardClone)) {
-						captureMoves.Add (4 << 17 | 6 << 11 | 5 << 7 | 7 << 4 | 4);
-					}
-				}
-			}
-			while (kingBitBoard != 0) {
-
-				lsbIndex = leastSigLookup [((kingBitBoard & (~kingBitBoard+1)) * debruijnleast) >> 58];
-				// lsbIndex = index of knight on board
-
-				destinations = kingMoves [lsbIndex] & (~whitePieces);
-				uint destinationIndex = 0;
-				while (destinations  != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & blackPieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [6]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [7]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [8]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [9]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [10]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [11]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add ( lsbIndex << 17 | destinationIndex << 11 | 5 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 5 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-				kingBitBoard &= kingBitBoard - 1;
-			}
-
-			// pawns
-			ulong pawnBitBoard = bitboards[0];
-			while (pawnBitBoard != 0) {
-				destinations = 0;
-				ulong lsb = pawnBitBoard & (~pawnBitBoard+1);
-				lsbIndex = leastSigLookup [(lsb * debruijnleast) >> 58];
-				// basic move
-				if (((lsb << 8) & occupied) == 0) {
-					if ((lsb & 0xff000000000000) != 0) {
-						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
-						captureMoves.Add (lsbIndex << 17 | (lsbIndex + 8) << 11 | 7 << 4 | 1);
-					}
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 8) << 11 | 7 << 4);
-				}
-				// 2 move
-				if (((lsb << 16) & ~occupied & 0xff000000) != 0 && ((lsb << 8) & occupied) == 0) {
-					validMoves.Add (lsbIndex << 17 | (lsbIndex + 16) << 11 | 7 << 4);
-				}
-				// capture left
-				ulong destinationBit = (lsb&0xfefefefefefefefe) << 7;
-				if ((destinationBit & blackPieces) != 0) {
-					if ((destinationBit & bitboards [6]) != 0) {
-						capturedPiece = 0;
-					} else if ((destinationBit & bitboards [7]) != 0) {
-						capturedPiece = 1 << 4;
-					} else if ((destinationBit & bitboards [8]) != 0) {
-						capturedPiece = 2 << 4;
-					} else if ((destinationBit & bitboards [9]) != 0) {
-						capturedPiece = 3 << 4;
-					} else if ((destinationBit & bitboards [10]) != 0) {
-						capturedPiece = 4 << 4;
-					} else if ((destinationBit & bitboards [11]) != 0) {
-						capturedPiece = 5 << 4;
-					}
-					if ((lsb & 0xff000000000000) != 0) {
-						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
-						captureMoves.Add (lsbIndex << 17 | (lsbIndex + 7) << 11 |capturedPiece | 1);
-					}
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 7) << 11 | capturedPiece); 
-				}
-				// capture right
-				destinationBit = (lsb&0x7f7f7f7f7f7f7f7f) << 9;
-				if ((destinationBit & blackPieces) != 0) {
-					if ((destinationBit & bitboards [6]) != 0) {
-						capturedPiece = 0;
-					} else if ((destinationBit & bitboards [7]) != 0) {
-						capturedPiece = 1 << 4;
-					} else if ((destinationBit & bitboards [8]) != 0) {
-						capturedPiece = 2 << 4;
-					} else if ((destinationBit & bitboards [9]) != 0) {
-						capturedPiece = 3 << 4;
-					} else if ((destinationBit & bitboards [10]) != 0) {
-						capturedPiece = 4 << 4;
-					} else if ((destinationBit & bitboards [11]) != 0) {
-						capturedPiece = 5 << 4;
-					}
-					if ((lsb & 0xff000000000000) != 0) {
-						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
-						captureMoves.Add (lsbIndex << 17 | (lsbIndex + 9) << 11 |capturedPiece | 1);
-					}
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 9) << 11 | capturedPiece); 
-				}
-				// en passant to the left
-				if (lsbIndex + 7 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0xfefefefefefefefe)!=0) {
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 7) << 11 | 6 << 4); 
-				} 
-				// EP right
-				else if (lsbIndex + 9 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0x7f7f7f7f7f7f7f7f)!=0) {
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 9) << 11 | 6 << 4); 
-				}
-				pawnBitBoard &= pawnBitBoard - 1;
-			}
-
-				
-			// bishops
-			ulong bishopBitBoard = bitboards [2];
-			while (bishopBitBoard != 0) {
+//	private static List<uint> allValidMoves(ulong[] bitboards){
+//		bool insertStart = false;
+//		List<uint> validMoves = new List<uint>(); 
+//		List<uint> captureMoves = new List<uint>();
+//		ulong whitePieces = bitboards [0] | bitboards [1] | bitboards [2] | bitboards [3] | bitboards [4] | bitboards [5];
+//		ulong blackPieces = bitboards [6] | bitboards [7] | bitboards [8] | bitboards [9] | bitboards [10] | bitboards [11];
+//		ulong occupied = whitePieces | blackPieces;
+//		uint capturedPiece;
+//		ulong destinations;
+//		ulong gameState = bitboards [12];
+//
+//		// white turn
+//		if ((gameState & 1) == 0) {
+//			
+//			// knights
+//			uint lsbIndex = 0;
+//			ulong knightBitBoard = bitboards [1];
+//			while (knightBitBoard != 0) {
+//				
+//				lsbIndex = leastSigLookup [((knightBitBoard & (~knightBitBoard+1)) * debruijnleast) >> 58];
+//				// lsbIndex = index of knight on board
+//
+//				destinations = knightMoves [lsbIndex] & (~whitePieces);
+//				uint destinationIndex = 0;
+//				while (destinations  != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);
+//					if ((destinationBit & blackPieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [6]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [7]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [8]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [9]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [10]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [11]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add ( lsbIndex << 17 | destinationIndex << 11 | 1 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 1 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//				knightBitBoard &= knightBitBoard - 1;
+//			}
+//
+//			// king
+//			// commented to avoid stack
+//			ulong kingBitBoard = bitboards [5];
+//			ulong[] switchTurn = (ulong[])bitboards.Clone ();
+//			switchTurn [12] ^= 1;
+//			if (kingBitBoard == 0x10 && !CanTakeKing(switchTurn)) {
+//				// castling left
+//				if ((bitboards [3] & 0x1)!=0 && (occupied & 0xe)==0 && (gameState & 0x8)==0x8) {
+//					ulong[] boardClone = (ulong[])bitboards.Clone ();
+//					MakeMove (boardClone, 4 << 17 | 3 << 11 | 5 << 7 | 7 << 4);
+//					if (!CanTakeKing (boardClone)) {
+//						captureMoves.Add (4 << 17 | 2 << 11 | 5 << 7 | 7 << 4 | 8);
+//					}
+//				}
+//				// castling right
+//				if ((bitboards [3] & 0x80)!=0 && (occupied & 0x60)==0 && (gameState & 0x10)==0x10) {
+//					ulong[] boardClone = (ulong[])bitboards.Clone ();
+//					MakeMove (boardClone, 4 << 17 | 5 << 11 | 5 << 7 | 7 << 4);
+//					if (!CanTakeKing (boardClone)) {
+//						captureMoves.Add (4 << 17 | 6 << 11 | 5 << 7 | 7 << 4 | 4);
+//					}
+//				}
+//			}
+//			while (kingBitBoard != 0) {
+//
+//				lsbIndex = leastSigLookup [((kingBitBoard & (~kingBitBoard+1)) * debruijnleast) >> 58];
+//				// lsbIndex = index of knight on board
+//
+//				destinations = kingMoves [lsbIndex] & (~whitePieces);
+//				uint destinationIndex = 0;
+//				while (destinations  != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & blackPieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [6]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [7]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [8]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [9]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [10]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [11]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add ( lsbIndex << 17 | destinationIndex << 11 | 5 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 5 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//				kingBitBoard &= kingBitBoard - 1;
+//			}
+//
+//			// pawns
+//			ulong pawnBitBoard = bitboards[0];
+//			while (pawnBitBoard != 0) {
 //				destinations = 0;
-				lsbIndex = leastSigLookup [((bishopBitBoard & (~bishopBitBoard+1)) * debruijnleast) >> 58];
-
-				// ITS MAGIC!
-				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~whitePieces;
-
-
-
-				uint destinationIndex;
-				while (destinations  != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & blackPieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [6]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [7]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [8]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [9]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [10]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [11]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add ( lsbIndex << 17 | destinationIndex << 11 | 2 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 2 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-					
-				bishopBitBoard &= bishopBitBoard - 1;
-			}
-
-			// rooks
-			ulong rookBitBoard = bitboards [3];
-			while (rookBitBoard != 0) {
+//				ulong lsb = pawnBitBoard & (~pawnBitBoard+1);
+//				lsbIndex = leastSigLookup [(lsb * debruijnleast) >> 58];
+//				// basic move
+//				if (((lsb << 8) & occupied) == 0) {
+//					if ((lsb & 0xff000000000000) != 0) {
+//						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
+//						captureMoves.Add (lsbIndex << 17 | (lsbIndex + 8) << 11 | 7 << 4 | 1);
+//					}
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 8) << 11 | 7 << 4);
+//				}
+//				// 2 move
+//				if (((lsb << 16) & ~occupied & 0xff000000) != 0 && ((lsb << 8) & occupied) == 0) {
+//					validMoves.Add (lsbIndex << 17 | (lsbIndex + 16) << 11 | 7 << 4);
+//				}
+//				// capture left
+//				ulong destinationBit = (lsb&0xfefefefefefefefe) << 7;
+//				if ((destinationBit & blackPieces) != 0) {
+//					if ((destinationBit & bitboards [6]) != 0) {
+//						capturedPiece = 0;
+//					} else if ((destinationBit & bitboards [7]) != 0) {
+//						capturedPiece = 1 << 4;
+//					} else if ((destinationBit & bitboards [8]) != 0) {
+//						capturedPiece = 2 << 4;
+//					} else if ((destinationBit & bitboards [9]) != 0) {
+//						capturedPiece = 3 << 4;
+//					} else if ((destinationBit & bitboards [10]) != 0) {
+//						capturedPiece = 4 << 4;
+//					} else if ((destinationBit & bitboards [11]) != 0) {
+//						capturedPiece = 5 << 4;
+//					}
+//					if ((lsb & 0xff000000000000) != 0) {
+//						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
+//						captureMoves.Add (lsbIndex << 17 | (lsbIndex + 7) << 11 |capturedPiece | 1);
+//					}
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 7) << 11 | capturedPiece); 
+//				}
+//				// capture right
+//				destinationBit = (lsb&0x7f7f7f7f7f7f7f7f) << 9;
+//				if ((destinationBit & blackPieces) != 0) {
+//					if ((destinationBit & bitboards [6]) != 0) {
+//						capturedPiece = 0;
+//					} else if ((destinationBit & bitboards [7]) != 0) {
+//						capturedPiece = 1 << 4;
+//					} else if ((destinationBit & bitboards [8]) != 0) {
+//						capturedPiece = 2 << 4;
+//					} else if ((destinationBit & bitboards [9]) != 0) {
+//						capturedPiece = 3 << 4;
+//					} else if ((destinationBit & bitboards [10]) != 0) {
+//						capturedPiece = 4 << 4;
+//					} else if ((destinationBit & bitboards [11]) != 0) {
+//						capturedPiece = 5 << 4;
+//					}
+//					if ((lsb & 0xff000000000000) != 0) {
+//						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
+//						captureMoves.Add (lsbIndex << 17 | (lsbIndex + 9) << 11 |capturedPiece | 1);
+//					}
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 9) << 11 | capturedPiece); 
+//				}
+//				// en passant to the left
+//				if (lsbIndex + 7 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0xfefefefefefefefe)!=0) {
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 7) << 11 | 6 << 4); 
+//				} 
+//				// EP right
+//				else if (lsbIndex + 9 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0x7f7f7f7f7f7f7f7f)!=0) {
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex + 9) << 11 | 6 << 4); 
+//				}
+//				pawnBitBoard &= pawnBitBoard - 1;
+//			}
+//
+//				
+//			// bishops
+//			ulong bishopBitBoard = bitboards [2];
+//			while (bishopBitBoard != 0) {
+////				destinations = 0;
+//				lsbIndex = leastSigLookup [((bishopBitBoard & (~bishopBitBoard+1)) * debruijnleast) >> 58];
+//
+//				// ITS MAGIC!
+//				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~whitePieces;
+//
+//
+//
+//				uint destinationIndex;
+//				while (destinations  != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & blackPieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [6]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [7]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [8]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [9]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [10]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [11]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add ( lsbIndex << 17 | destinationIndex << 11 | 2 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 2 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//					
+//				bishopBitBoard &= bishopBitBoard - 1;
+//			}
+//
+//			// rooks
+//			ulong rookBitBoard = bitboards [3];
+//			while (rookBitBoard != 0) {
+////				destinations = 0;
+//				lsbIndex = leastSigLookup [((rookBitBoard & (~rookBitBoard+1)) * debruijnleast) >> 58];
+//
+//				// ITS MAGIC!
+//				destinations = magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~whitePieces;
+//
+//
+//
+//
+//				uint destinationIndex;
+//				while (destinations  != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & blackPieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [6]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [7]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [8]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [9]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [10]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [11]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 3 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 3 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//
+//				rookBitBoard &= rookBitBoard - 1;
+//			}
+//			// queen
+//			ulong queenBitBoard = bitboards [4];
+//
+//			while (queenBitBoard != 0) {
+////				ulong attacks;
+////				ulong blockers;
+////				destinations = 0;
+//				lsbIndex = leastSigLookup [((queenBitBoard & (~queenBitBoard+1)) * debruijnleast) >> 58];
+//
+//				// ITS MAGIC!
+//				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~whitePieces;
+//				destinations |= magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~whitePieces;
+//
+//
+//
+//				uint destinationIndex;
+//				while (destinations  != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & blackPieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [6]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [7]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [8]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [9]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [10]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [11]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 4 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 4 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//
+//				queenBitBoard &= queenBitBoard - 1;
+//			}
+//
+//			// black turn
+//		} else {
+//			// knights
+//			uint lsbIndex = 0;
+//			ulong knightBitBoard = bitboards [7];
+//			while (knightBitBoard != 0) {
+//				lsbIndex = leastSigLookup [((knightBitBoard & (~knightBitBoard+1)) * debruijnleast) >> 58];
+//				// lsbIndex = index of knight on board
+//
+//				destinations = knightMoves [lsbIndex] & (~blackPieces);
+//				uint destinationIndex = 0;
+//				while (destinations != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & whitePieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [0]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [1]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [2]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [3]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [4]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [5]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 9 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 9 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//				knightBitBoard &= knightBitBoard - 1;
+//			}
+//			// king
+//			// commented to avoid stack
+//			ulong kingBitBoard = bitboards [11];
+//			ulong[] switchTurn = (ulong[])bitboards.Clone ();
+//			switchTurn [12] ^= 1;
+//			if (kingBitBoard == 0x1000000000000000 && !CanTakeKing(switchTurn)) {
+//				if ((bitboards [9] & unchecked((ulong)0x100000000000000)) != 0 && (occupied & unchecked((ulong)0xe00000000000000))==0  && (gameState & 0x2)==0x2) {
+//					ulong[] boardClone = (ulong[])bitboards.Clone ();
+//					MakeMove (boardClone, 60 << 17 | 59 << 11 | 13 << 7 | 7 << 4);
+//					if (!CanTakeKing (boardClone)) {
+//						captureMoves.Add ((60 << 17 | 58 << 11 | 13 << 7 | 7 << 4 | 8));
+//					}
+//				}
+//				if ((bitboards [9] & unchecked((ulong)0x8000000000000000)) != 0 && (occupied & unchecked((ulong)0x6000000000000000))==0 && (gameState & 0x4)==0x4) {
+//					ulong[] boardClone = (ulong[])bitboards.Clone ();
+//					MakeMove (boardClone, 60 << 17 | 61 << 11 | 13 << 7 | 7 << 4);
+//					if (!CanTakeKing (boardClone)) {
+//						captureMoves.Add (60 << 17 | 62 << 11 | 13 << 7 | 7 << 4 | 4);
+//					}
+//				}
+//			}
+//			while (kingBitBoard != 0) {
+//
+//				lsbIndex = leastSigLookup [((kingBitBoard & (~kingBitBoard+1)) * debruijnleast) >> 58];
+//				// lsbIndex = index of knight on board
+//
+//				destinations = kingMoves [lsbIndex] & (~blackPieces);
+//				uint destinationIndex = 0;
+//				while (destinations != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & whitePieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [0]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [1]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [2]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [3]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [4]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [5]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 13 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 13 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//				kingBitBoard &= kingBitBoard - 1;
+//			}
+//
+//			// pawns
+//			ulong pawnBitBoard = bitboards[6];
+//			while (pawnBitBoard != 0) {
 //				destinations = 0;
-				lsbIndex = leastSigLookup [((rookBitBoard & (~rookBitBoard+1)) * debruijnleast) >> 58];
-
-				// ITS MAGIC!
-				destinations = magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~whitePieces;
-
-
-
-
-				uint destinationIndex;
-				while (destinations  != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & blackPieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [6]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [7]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [8]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [9]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [10]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [11]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 3 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 3 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-
-				rookBitBoard &= rookBitBoard - 1;
-			}
-			// queen
-			ulong queenBitBoard = bitboards [4];
-
-			while (queenBitBoard != 0) {
-//				ulong attacks;
-//				ulong blockers;
-//				destinations = 0;
-				lsbIndex = leastSigLookup [((queenBitBoard & (~queenBitBoard+1)) * debruijnleast) >> 58];
-
-				// ITS MAGIC!
-				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~whitePieces;
-				destinations |= magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~whitePieces;
-
-
-
-				uint destinationIndex;
-				while (destinations  != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & blackPieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [6]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [7]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [8]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [9]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [10]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [11]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 4 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 4 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-
-				queenBitBoard &= queenBitBoard - 1;
-			}
-
-			// black turn
-		} else {
-			// knights
-			uint lsbIndex = 0;
-			ulong knightBitBoard = bitboards [7];
-			while (knightBitBoard != 0) {
-				lsbIndex = leastSigLookup [((knightBitBoard & (~knightBitBoard+1)) * debruijnleast) >> 58];
-				// lsbIndex = index of knight on board
-
-				destinations = knightMoves [lsbIndex] & (~blackPieces);
-				uint destinationIndex = 0;
-				while (destinations != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & whitePieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [0]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [1]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [2]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [3]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [4]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [5]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 9 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 9 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-				knightBitBoard &= knightBitBoard - 1;
-			}
-			// king
-			// commented to avoid stack
-			ulong kingBitBoard = bitboards [11];
-			ulong[] switchTurn = (ulong[])bitboards.Clone ();
-			switchTurn [12] ^= 1;
-			if (kingBitBoard == 0x1000000000000000 && !CanTakeKing(switchTurn)) {
-				if ((bitboards [9] & unchecked((ulong)0x100000000000000)) != 0 && (occupied & unchecked((ulong)0xe00000000000000))==0  && (gameState & 0x2)==0x2) {
-					ulong[] boardClone = (ulong[])bitboards.Clone ();
-					MakeMove (boardClone, 60 << 17 | 59 << 11 | 13 << 7 | 7 << 4);
-					if (!CanTakeKing (boardClone)) {
-						captureMoves.Add ((60 << 17 | 58 << 11 | 13 << 7 | 7 << 4 | 8));
-					}
-				}
-				if ((bitboards [9] & unchecked((ulong)0x8000000000000000)) != 0 && (occupied & unchecked((ulong)0x6000000000000000))==0 && (gameState & 0x4)==0x4) {
-					ulong[] boardClone = (ulong[])bitboards.Clone ();
-					MakeMove (boardClone, 60 << 17 | 61 << 11 | 13 << 7 | 7 << 4);
-					if (!CanTakeKing (boardClone)) {
-						captureMoves.Add (60 << 17 | 62 << 11 | 13 << 7 | 7 << 4 | 4);
-					}
-				}
-			}
-			while (kingBitBoard != 0) {
-
-				lsbIndex = leastSigLookup [((kingBitBoard & (~kingBitBoard+1)) * debruijnleast) >> 58];
-				// lsbIndex = index of knight on board
-
-				destinations = kingMoves [lsbIndex] & (~blackPieces);
-				uint destinationIndex = 0;
-				while (destinations != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & whitePieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [0]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [1]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [2]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [3]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [4]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [5]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 13 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 13 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-				kingBitBoard &= kingBitBoard - 1;
-			}
-
-			// pawns
-			ulong pawnBitBoard = bitboards[6];
-			while (pawnBitBoard != 0) {
-				destinations = 0;
-				ulong lsb = pawnBitBoard & (~pawnBitBoard+1);
-				lsbIndex = leastSigLookup [(lsb * debruijnleast) >> 58];
-				// basic move
-				if (((lsb >> 8) & occupied) == 0) {
-					if ((lsb & 0xff00) != 0) {
-						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
-						validMoves.Add (lsbIndex << 17 | (lsbIndex - 8) << 11 | 8 << 7 | 7 << 4 | 1);
-					}
-					validMoves.Add (lsbIndex << 17 | (lsbIndex - 8) << 11 | 8 << 7| 7 << 4);
-				}
-				// 2 move
-				if (((lsb >> 16) & ~occupied & 0xff00000000) != 0 && ((lsb >> 8) & occupied) == 0) {
-					validMoves.Add (lsbIndex << 17 | (lsbIndex - 16) << 11 |8 << 7 | 7 << 4);
-				}
-				// capture right
-				ulong destinationBit = (lsb&0x7f7f7f7f7f7f7f7f) >> 7;
-				if ((destinationBit & whitePieces) != 0) {
-					if ((destinationBit & bitboards [0]) != 0) {
-						capturedPiece = 0;
-					} else if ((destinationBit & bitboards [1]) != 0) {
-						capturedPiece = 1 << 4;
-					} else if ((destinationBit & bitboards [2]) != 0) {
-						capturedPiece = 2 << 4;
-					} else if ((destinationBit & bitboards [3]) != 0) {
-						capturedPiece = 3 << 4;
-					} else if ((destinationBit & bitboards [4]) != 0) {
-						capturedPiece = 4 << 4;
-					} else if ((destinationBit & bitboards [5]) != 0) {
-						capturedPiece = 5 << 4;
-					}
-					if ((lsb & 0xff00) != 0) {
-						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
-						captureMoves.Add (lsbIndex << 17 | (lsbIndex - 7) << 11 |8 << 7 |capturedPiece | 1);
-					}
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 7) << 11 |8 << 7 | capturedPiece); 
-				}
-				// capture left
-				destinationBit = (lsb&0xfefefefefefefefe) >> 9;
-				if ((destinationBit & whitePieces) != 0) {
-					if ((destinationBit & bitboards [0]) != 0) {
-						capturedPiece = 0;
-					} else if ((destinationBit & bitboards [1]) != 0) {
-						capturedPiece = 1 << 4;
-					} else if ((destinationBit & bitboards [2]) != 0) {
-						capturedPiece = 2 << 4;
-					} else if ((destinationBit & bitboards [3]) != 0) {
-						capturedPiece = 3 << 4;
-					} else if ((destinationBit & bitboards [4]) != 0) {
-						capturedPiece = 4 << 4;
-					} else if ((destinationBit & bitboards [5]) != 0) {
-						capturedPiece = 5 << 4;
-					}
-					if ((lsb & 0xff00) != 0) {
-						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
-						captureMoves.Add (lsbIndex << 17 | (lsbIndex - 9) << 11 |8 << 7 |capturedPiece | 1);
-					}
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 9) << 11 | 8 << 7 |capturedPiece); 
-				}
-				// en passant to the right
-				if (lsbIndex - 7 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0x7f7f7f7f7f7f7f7f)!=0) {
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 7) << 11 |8 << 7 | 6 << 4); 
-				} 
-				// EP left
-				else if (lsbIndex - 9 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0xfefefefefefefefe)!=0) {
-					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 9) << 11 |8 << 7 | 6 << 4); 
-				}
-				pawnBitBoard &= pawnBitBoard - 1;
-			}
-
-			// bishops
-			ulong bishopBitBoard = bitboards [8];
-			while (bishopBitBoard != 0) {
-//				destinations = 0;
-				lsbIndex = leastSigLookup [((bishopBitBoard & (~bishopBitBoard+1)) * debruijnleast) >> 58];
-
-				// ITS MAGIC
-				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~blackPieces;
-
-
-
-				uint destinationIndex;
-				while (destinations != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & whitePieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [0]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [1]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [2]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [3]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [4]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [5]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 10 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 10 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-
-				bishopBitBoard &= bishopBitBoard - 1;
-			}
-			// rooks
-			ulong rookBitBoard = bitboards [9];
-			while (rookBitBoard != 0) {
-//				destinations = 0;
-				lsbIndex = leastSigLookup [((rookBitBoard & (~rookBitBoard+1)) * debruijnleast) >> 58];
-
-				// ITS MAGIC!
-				destinations = magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~blackPieces;
-
-
-
-				uint destinationIndex;
-				while (destinations != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & whitePieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [0]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [1]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [2]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [3]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [4]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [5]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 11 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 11 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-
-				rookBitBoard &= rookBitBoard - 1;
-			}
-			// queen
-			ulong queenBitBoard = bitboards [10];
-
-			while (queenBitBoard != 0) {
-//				ulong attacks;
-//				ulong blockers;
-//				destinations = 0;
-				lsbIndex = leastSigLookup [((queenBitBoard & (~queenBitBoard+1)) * debruijnleast) >> 58];
-
-				// ITS MAGIC!
-				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~blackPieces;
-				destinations |= magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~blackPieces;
-
-				uint destinationIndex;
-				while (destinations != 0) {
-					ulong destinationBit = destinations & (~destinations+1);;
-					if ((destinationBit & whitePieces) != 0) {
-						insertStart = true;
-						if ((destinationBit & bitboards [0]) != 0) {
-							capturedPiece = 0;
-						} else if ((destinationBit & bitboards [1]) != 0) {
-							capturedPiece = 1 << 4;
-						} else if ((destinationBit & bitboards [2]) != 0) {
-							capturedPiece = 2 << 4;
-						} else if ((destinationBit & bitboards [3]) != 0) {
-							capturedPiece = 3 << 4;
-						} else if ((destinationBit & bitboards [4]) != 0) {
-							capturedPiece = 4 << 4;
-						} else if ((destinationBit & bitboards [5]) != 0) {
-							capturedPiece = 5 << 4;
-						}
-					} else {
-						insertStart = false;
-						capturedPiece = 7 << 4;
-					}
-					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
-					// destinationIndex = index of destination tile
-					if (insertStart) {
-						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 12 << 7 | capturedPiece);
-					} else {
-						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 12 << 7 | capturedPiece);
-					}
-					destinations &= destinations - 1;
-				}
-
-				queenBitBoard &= queenBitBoard - 1;
-			}
-		}
-		captureMoves.AddRange (validMoves);
-		return captureMoves;
-	}
+//				ulong lsb = pawnBitBoard & (~pawnBitBoard+1);
+//				lsbIndex = leastSigLookup [(lsb * debruijnleast) >> 58];
+//				// basic move
+//				if (((lsb >> 8) & occupied) == 0) {
+//					if ((lsb & 0xff00) != 0) {
+//						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
+//						validMoves.Add (lsbIndex << 17 | (lsbIndex - 8) << 11 | 8 << 7 | 7 << 4 | 1);
+//					}
+//					validMoves.Add (lsbIndex << 17 | (lsbIndex - 8) << 11 | 8 << 7| 7 << 4);
+//				}
+//				// 2 move
+//				if (((lsb >> 16) & ~occupied & 0xff00000000) != 0 && ((lsb >> 8) & occupied) == 0) {
+//					validMoves.Add (lsbIndex << 17 | (lsbIndex - 16) << 11 |8 << 7 | 7 << 4);
+//				}
+//				// capture right
+//				ulong destinationBit = (lsb&0x7f7f7f7f7f7f7f7f) >> 7;
+//				if ((destinationBit & whitePieces) != 0) {
+//					if ((destinationBit & bitboards [0]) != 0) {
+//						capturedPiece = 0;
+//					} else if ((destinationBit & bitboards [1]) != 0) {
+//						capturedPiece = 1 << 4;
+//					} else if ((destinationBit & bitboards [2]) != 0) {
+//						capturedPiece = 2 << 4;
+//					} else if ((destinationBit & bitboards [3]) != 0) {
+//						capturedPiece = 3 << 4;
+//					} else if ((destinationBit & bitboards [4]) != 0) {
+//						capturedPiece = 4 << 4;
+//					} else if ((destinationBit & bitboards [5]) != 0) {
+//						capturedPiece = 5 << 4;
+//					}
+//					if ((lsb & 0xff00) != 0) {
+//						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
+//						captureMoves.Add (lsbIndex << 17 | (lsbIndex - 7) << 11 |8 << 7 |capturedPiece | 1);
+//					}
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 7) << 11 |8 << 7 | capturedPiece); 
+//				}
+//				// capture left
+//				destinationBit = (lsb&0xfefefefefefefefe) >> 9;
+//				if ((destinationBit & whitePieces) != 0) {
+//					if ((destinationBit & bitboards [0]) != 0) {
+//						capturedPiece = 0;
+//					} else if ((destinationBit & bitboards [1]) != 0) {
+//						capturedPiece = 1 << 4;
+//					} else if ((destinationBit & bitboards [2]) != 0) {
+//						capturedPiece = 2 << 4;
+//					} else if ((destinationBit & bitboards [3]) != 0) {
+//						capturedPiece = 3 << 4;
+//					} else if ((destinationBit & bitboards [4]) != 0) {
+//						capturedPiece = 4 << 4;
+//					} else if ((destinationBit & bitboards [5]) != 0) {
+//						capturedPiece = 5 << 4;
+//					}
+//					if ((lsb & 0xff00) != 0) {
+//						// promote to knight, queen detected automatically in next line (0 = queen on end of line)
+//						captureMoves.Add (lsbIndex << 17 | (lsbIndex - 9) << 11 |8 << 7 |capturedPiece | 1);
+//					}
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 9) << 11 | 8 << 7 |capturedPiece); 
+//				}
+//				// en passant to the right
+//				if (lsbIndex - 7 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0x7f7f7f7f7f7f7f7f)!=0) {
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 7) << 11 |8 << 7 | 6 << 4); 
+//				} 
+//				// EP left
+//				else if (lsbIndex - 9 == ((gameState & 0x7e0) >> 5) && (gameState & 0x800) != 0 && (lsb&0xfefefefefefefefe)!=0) {
+//					captureMoves.Add (lsbIndex << 17 | (lsbIndex - 9) << 11 |8 << 7 | 6 << 4); 
+//				}
+//				pawnBitBoard &= pawnBitBoard - 1;
+//			}
+//
+//			// bishops
+//			ulong bishopBitBoard = bitboards [8];
+//			while (bishopBitBoard != 0) {
+////				destinations = 0;
+//				lsbIndex = leastSigLookup [((bishopBitBoard & (~bishopBitBoard+1)) * debruijnleast) >> 58];
+//
+//				// ITS MAGIC
+//				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~blackPieces;
+//
+//
+//
+//				uint destinationIndex;
+//				while (destinations != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & whitePieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [0]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [1]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [2]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [3]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [4]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [5]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 10 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 10 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//
+//				bishopBitBoard &= bishopBitBoard - 1;
+//			}
+//			// rooks
+//			ulong rookBitBoard = bitboards [9];
+//			while (rookBitBoard != 0) {
+////				destinations = 0;
+//				lsbIndex = leastSigLookup [((rookBitBoard & (~rookBitBoard+1)) * debruijnleast) >> 58];
+//
+//				// ITS MAGIC!
+//				destinations = magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~blackPieces;
+//
+//
+//
+//				uint destinationIndex;
+//				while (destinations != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & whitePieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [0]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [1]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [2]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [3]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [4]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [5]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 11 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 11 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//
+//				rookBitBoard &= rookBitBoard - 1;
+//			}
+//			// queen
+//			ulong queenBitBoard = bitboards [10];
+//
+//			while (queenBitBoard != 0) {
+////				ulong attacks;
+////				ulong blockers;
+////				destinations = 0;
+//				lsbIndex = leastSigLookup [((queenBitBoard & (~queenBitBoard+1)) * debruijnleast) >> 58];
+//
+//				// ITS MAGIC!
+//				destinations = magicBishopAttacks[lsbIndex][((bishopPremasks [lsbIndex] & occupied)*bishopMagics[lsbIndex])>>bishopShifts[lsbIndex]] & ~blackPieces;
+//				destinations |= magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]] & ~blackPieces;
+//
+//				uint destinationIndex;
+//				while (destinations != 0) {
+//					ulong destinationBit = destinations & (~destinations+1);;
+//					if ((destinationBit & whitePieces) != 0) {
+//						insertStart = true;
+//						if ((destinationBit & bitboards [0]) != 0) {
+//							capturedPiece = 0;
+//						} else if ((destinationBit & bitboards [1]) != 0) {
+//							capturedPiece = 1 << 4;
+//						} else if ((destinationBit & bitboards [2]) != 0) {
+//							capturedPiece = 2 << 4;
+//						} else if ((destinationBit & bitboards [3]) != 0) {
+//							capturedPiece = 3 << 4;
+//						} else if ((destinationBit & bitboards [4]) != 0) {
+//							capturedPiece = 4 << 4;
+//						} else if ((destinationBit & bitboards [5]) != 0) {
+//							capturedPiece = 5 << 4;
+//						}
+//					} else {
+//						insertStart = false;
+//						capturedPiece = 7 << 4;
+//					}
+//					destinationIndex = leastSigLookup [(destinationBit * debruijnleast) >> 58];
+//					// destinationIndex = index of destination tile
+//					if (insertStart) {
+//						captureMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 12 << 7 | capturedPiece);
+//					} else {
+//						validMoves.Add (lsbIndex << 17 | destinationIndex << 11 | 12 << 7 | capturedPiece);
+//					}
+//					destinations &= destinations - 1;
+//				}
+//
+//				queenBitBoard &= queenBitBoard - 1;
+//			}
+//		}
+//		captureMoves.AddRange (validMoves);
+//		return captureMoves;
+//	}
 
 	private bool staleMate = false;
 
@@ -3192,7 +3192,7 @@ public class GameController : MonoBehaviour{
 			boardClone = (ulong[])bitboardArray.Clone ();
 			boardClone [12] = gameState;
 			UnMakeMove (boardClone, move);
-			List<uint> allMoves = allValidMoves (boardClone);
+			List<uint> allMoves = TrueLegalMoves (boardClone);
 
 			uint fromTile = move >> 17;
 			uint toTile = (move >> 11) & 0x3f;
@@ -3334,7 +3334,7 @@ public class GameController : MonoBehaviour{
 
 	private void MouseUp(){
 		int gameTurn = (int)(bitboardArray [12] % 2);
-		List<uint> allMoves = allValidMoves (bitboardArray);
+		List<uint> allMoves = TrueLegalMoves (bitboardArray);
 		// player's turn
 		if (selectionX != -1 && players [gameTurn] == 0) {
 			int pieceIndex = -1;
@@ -3514,7 +3514,7 @@ public class GameController : MonoBehaviour{
 				}
 			}
 		
-			List <uint> allMoves = allValidMoves (bitboardArray);
+			List <uint> allMoves = TrueLegalMoves (bitboardArray);
 			foreach(uint choice in allMoves){
 				if ((choice >> 11) == move) {
 					move = choice;
@@ -3656,7 +3656,7 @@ public class GameController : MonoBehaviour{
 		foreach (uint move in validMoves){
 			MakeMove (bitboards, move);
 			// assumed to be a valid move
-			perft += Perft(bitboards,depthLeft-1);
+			perft += TestPerft(bitboards,depthLeft-1);
 
 			bitboards [12] = gameState;
 			UnMakeMove (bitboards, move);
@@ -3666,34 +3666,34 @@ public class GameController : MonoBehaviour{
 		return perft;
 	}
 
-	private int Perft(ulong[] bitboards, int depthLeft){
-
-		if (depthLeft == 0) {
-			bitboards [12] ^= 1;
-			if (CanTakeKing (bitboards)) {
-				checksFound += 1;
-			}
-			return 1;
-		}
-		int perft = 0;
-
-		// Reliable results:
-				List<uint> validMoves = allValidMoves(bitboards);
-				ulong gameState = bitboards [12];
-				foreach (uint move in validMoves){
-					MakeMove (bitboards, move);
-					if(!CanTakeKing(bitboards)){
-						// actually a valid move
-						perft += Perft(bitboards,depthLeft-1);
-					}
-					bitboards [12] = gameState;
-					UnMakeMove (bitboards, move);
-				}
-			
-
-
-		return perft;
-	}
+//	private int Perft(ulong[] bitboards, int depthLeft){
+//
+//		if (depthLeft == 0) {
+//			bitboards [12] ^= 1;
+//			if (CanTakeKing (bitboards)) {
+//				checksFound += 1;
+//			}
+//			return 1;
+//		}
+//		int perft = 0;
+//
+//		// Reliable results:
+//				List<uint> validMoves = allValidMoves(bitboards);
+//				ulong gameState = bitboards [12];
+//				foreach (uint move in validMoves){
+//					MakeMove (bitboards, move);
+//					if(!CanTakeKing(bitboards)){
+//						// actually a valid move
+//						perft += Perft(bitboards,depthLeft-1);
+//					}
+//					bitboards [12] = gameState;
+//					UnMakeMove (bitboards, move);
+//				}
+//			
+//
+//
+//		return perft;
+//	}
 
 
 	// THIS ONE ACTUALLY WORKS!!! --- BACKUP PROCESS ---
@@ -4111,7 +4111,7 @@ public class GameController : MonoBehaviour{
 	}
 
 	private bool InCheckmate(ulong[] bitboards){
-		List<uint> possibleMoves = allValidMoves(bitboards);
+		List<uint> possibleMoves = TrueLegalMoves(bitboards);
 		ulong gameState = bitboards [12];
 		foreach (uint move in possibleMoves) {
 			MakeMove (bitboards, move);
