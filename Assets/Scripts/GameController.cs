@@ -3307,7 +3307,7 @@ public class GameController : MonoBehaviour{
 	}
 
 	public void GameOver(){
-		SceneManager.LoadScene("Menu");
+		SceneManager.LoadScene("NewMenu");
 	}
 
 	void Update(){
@@ -4493,6 +4493,7 @@ public class GameController : MonoBehaviour{
 			GeneratePiece (4, 7 * i, 5 + 6 * i);
 		}
 
+		changeDimension ();
 	}
 		
 	private void GeneratePiece(int x, int y, int pieceIndex){
