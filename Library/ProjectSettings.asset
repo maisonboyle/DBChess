@@ -216,7 +216,7 @@ PlayerSettings:
   appleEnableAutomaticSigning: 0
   AndroidTargetDevice: 0
   AndroidSplashScreenScale: 2
-  androidSplashScreen: {fileID: 2800000, guid: e98d58e3b31cfd949b9552139a960945, type: 3}
+  androidSplashScreen: {fileID: 2800000, guid: b4970ac9e0583324fa9b234a0b165b0e, type: 3}
   AndroidKeystoreName: 
   AndroidKeyaliasName: 
   AndroidTVCompatibility: 1
@@ -232,7 +232,7 @@ PlayerSettings:
   - m_BuildTarget: 
     m_Icons:
     - serializedVersion: 2
-      m_Icon: {fileID: 2800000, guid: e98d58e3b31cfd949b9552139a960945, type: 3}
+      m_Icon: {fileID: 2800000, guid: b4970ac9e0583324fa9b234a0b165b0e, type: 3}
       m_Width: 128
       m_Height: 128
   m_BuildTargetBatching: []

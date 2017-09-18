@@ -1,0 +1,22 @@
+fileFormatVersion: 2
+guid: 93229fe30f3fe3945a715cc5d8e62a93
+timeCreated: 1505762333
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Coves
+  fontNames:
+  - Coves
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 656061e71c215664eb837b41c4419294, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

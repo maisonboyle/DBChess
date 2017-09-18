@@ -51,8 +51,8 @@ public class NewMenuController : MonoBehaviour {
 		} else {
 			Depth.gameObject.SetActive (false);
 			Time.gameObject.SetActive (false); 
-			DepthText.transform.parent.gameObject.SetActive (false); 
-			TimeText.transform.parent.gameObject.SetActive (false); 
+			DepthText.gameObject.SetActive (false); 
+			TimeText.gameObject.SetActive (false); 
 		}
 	}
 
@@ -62,8 +62,8 @@ public class NewMenuController : MonoBehaviour {
 		white = "Computer";
 		Depth.gameObject.SetActive (true);
 		Time.gameObject.SetActive (true);
-		DepthText.transform.parent.gameObject.SetActive (true); 
-		TimeText.transform.parent.gameObject.SetActive (true); 
+		DepthText.gameObject.SetActive (true); 
+		TimeText.gameObject.SetActive (true); 
 	}
 
 	public void BlackHuman(){
@@ -72,8 +72,8 @@ public class NewMenuController : MonoBehaviour {
 		black = "Computer";
 		Depth.gameObject.SetActive (true);
 		Time.gameObject.SetActive (true);
-		DepthText.transform.parent.gameObject.SetActive (true); 
-		TimeText.transform.parent.gameObject.SetActive (true); 
+		DepthText.gameObject.SetActive (true); 
+		TimeText.gameObject.SetActive (true); 
 	}
 
 	public void WhiteComp(){
@@ -84,8 +84,8 @@ public class NewMenuController : MonoBehaviour {
 			
 			Depth.gameObject.SetActive (false);
 			Time.gameObject.SetActive (false);
-			DepthText.transform.parent.gameObject.SetActive (false); 
-			TimeText.transform.parent.gameObject.SetActive (false);  
+			DepthText.gameObject.SetActive (false); 
+			TimeText.gameObject.SetActive (false);  
 		}
 	}
 
@@ -97,8 +97,8 @@ public class NewMenuController : MonoBehaviour {
 
 			Depth.gameObject.SetActive (false);
 			Time.gameObject.SetActive (false);
-			DepthText.transform.parent.gameObject.SetActive (false);  
-			TimeText.transform.parent.gameObject.SetActive (false);  
+			DepthText.gameObject.SetActive (false);  
+			TimeText.gameObject.SetActive (false);  
 		}
 	}
 		
