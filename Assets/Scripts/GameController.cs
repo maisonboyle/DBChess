@@ -1844,95 +1844,97 @@ public class GameController : MonoBehaviour{
 									// piece removed from regular generation that occurs later
 	//								bitboards [a] &= ~overlap;
 									pinBoard ^= trapped;
+									if (numberChecks == 0) {
+										// GENERATE MOVE FOR PIECE REGULARLY, MUST ALSO STAY WITHIN overlap AS WELL AS POSSIBLY captureMask AND slideMask
+										/// En passant still possible if pinner further away
+										///
+										/// HOPEFULLY COMPLETE
+										/// 
+										/// pawn capture, bishop/queen slide
 
-									// GENERATE MOVE FOR PIECE REGULARLY, MUST ALSO STAY WITHIN overlap AS WELL AS POSSIBLY captureMask AND slideMask
-									/// En passant still possible if pinner further away
-									///
-									/// HOPEFULLY COMPLETE
-									/// 
-									/// pawn capture, bishop/queen slide
-
-									//pawn
-									if (a - 6 * turn == 0) {
-										if (turn == 0) {
-											// regular capture
-											destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask & (((trapped << 7)&0x7f7f7f7f7f7f7f7f) | ((trapped <<9)&0xfefefefefefefefe));
-											if (destinations != 0) {
-												destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
-												if ((destinations & bitboards [8]) != 0) {
-													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  32);
-													if ((trapped & 0xff000000000000) != 0) {
-														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32 | 1);
-													}
-												} else {
-													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  64);
-													if ((trapped & 0xff000000000000) != 0) {
-														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64 | 1);
-													}
-												}
-											}
-											// en passant
-
-											ulong EPTile = (ulong)1<<(int)((bitboards [12] & 0x7e0)>>5);
-											if (((((trapped << 7) & 0x7f7f7f7f7f7f7f7f) | ((trapped << 9) & 0xfefefefefefefefe)) & EPTile & overlap & sliderMask) != 0 && (bitboards [12] & 0x800) != 0) {
-												captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96);
-											}
-
-										} else {
-											destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask & (((trapped >>9)&0x7f7f7f7f7f7f7f7f) | ((trapped >>7)&0xfefefefefefefefe));
-											if (destinations != 0) {
-												destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
-												if ((destinations & bitboards [2]) != 0) {
-													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  32 | 1024);
-													if ((trapped & 0xff00) != 0) {
-														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32 | 1025);
-													}
-												} else {
-													captureMoves.Add (lsb << 17 | destinationIndex << 11 |  64 | 1024);
-													if ((trapped & 0xff00) != 0) {
-														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64 | 1025);
+										//pawn
+										if (a - 6 * turn == 0) {
+											if (turn == 0) {
+												// regular capture
+												destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask & (((trapped << 7) & 0x7f7f7f7f7f7f7f7f) | ((trapped << 9) & 0xfefefefefefefefe));
+												if (destinations != 0) {
+													destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+													if ((destinations & bitboards [8]) != 0) {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32);
+														if ((trapped & 0xff000000000000) != 0) {
+															captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32 | 1);
+														}
+													} else {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64);
+														if ((trapped & 0xff000000000000) != 0) {
+															captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64 | 1);
+														}
 													}
 												}
-											}
-											// en passant
-											ulong EPTile = (ulong)1<<(int)((bitboards [12] & 0x7e0)>>5);
-											if (((((trapped >>9) & 0x7f7f7f7f7f7f7f7f) | ((trapped >>7) & 0xfefefefefefefefe)) & EPTile & overlap & sliderMask) != 0 && (bitboards [12] & 0x800) != 0) {
-												captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 1120);
+												// en passant
+
+												ulong EPTile = (ulong)1 << (int)((bitboards [12] & 0x7e0) >> 5);
+												if (((((trapped << 7) & 0x7f7f7f7f7f7f7f7f) | ((trapped << 9) & 0xfefefefefefefefe)) & EPTile & overlap & sliderMask) != 0 && (bitboards [12] & 0x800) != 0) {
+													captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 96);
+												}
+
+											} else {
+												destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask & (((trapped >> 9) & 0x7f7f7f7f7f7f7f7f) | ((trapped >> 7) & 0xfefefefefefefefe));
+												if (destinations != 0) {
+													destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+													if ((destinations & bitboards [2]) != 0) {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32 | 1024);
+														if ((trapped & 0xff00) != 0) {
+															captureMoves.Add (lsb << 17 | destinationIndex << 11 | 32 | 1025);
+														}
+													} else {
+														captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64 | 1024);
+														if ((trapped & 0xff00) != 0) {
+															captureMoves.Add (lsb << 17 | destinationIndex << 11 | 64 | 1025);
+														}
+													}
+												}
+												// en passant
+												ulong EPTile = (ulong)1 << (int)((bitboards [12] & 0x7e0) >> 5);
+												if (((((trapped >> 9) & 0x7f7f7f7f7f7f7f7f) | ((trapped >> 7) & 0xfefefefefefefefe)) & EPTile & overlap & sliderMask) != 0 && (bitboards [12] & 0x800) != 0) {
+													captureMoves.Add (lsb << 17 | (uint)(bitboards [12] & 0x7e0) << 6 | 1120);
+												}
 											}
 										}
-									}
 									// bishop
-									else if (a-6*turn == 2){
-										destinations = overlap & (sliderMask|captureMask) & (~sidePieces[turn]);
-										while (destinations != 0) {
-											destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
-											validMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 112 | 1024 * turn);
-											destinations &= destinations - 1;
-										}
-										destinations = (enemyBishops & (~enemyBishops + 1))&captureMask;
-										if (destinations != 0) {
-											destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
-											if ((destinations & bitboards [9 - 6 * turn]) != 0) {
-												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 48 | 1024 * turn);
-											} else {
-												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 3 << 7 | 64 | 1024 * turn);
+										// IF SOMETHING DOESNT WORK ITS TOTALLY THIS YOU FOOL
+									else if (a - 6 * turn == 2) {
+											destinations = overlap & (sliderMask | captureMask) & (~sidePieces [turn]);
+											while (destinations != 0) {
+												destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
+												validMoves.Add (lsb << 17 | destinationIndex << 11 | 2 << 7 | 112 | 1024 * turn);
+												destinations &= destinations - 1;
 											}
-										}
-										// Queen
-									}else if (a-6*turn == 4){
-										destinations = overlap & (sliderMask|captureMask) & (~sidePieces[turn]);
-										while (destinations != 0) {
-											destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
-											validMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 112 | 1024 * turn);
-											destinations &= destinations - 1;
-										}
-										destinations = (enemyBishops & (~enemyBishops + 1))&captureMask;
-										if (destinations != 0) {
-											destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
-											if ((destinations & bitboards [9 - 6 * turn]) != 0) {
-												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 48 | 1024 * turn);
-											} else {
-												captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 64 | 1024 * turn);
+											destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask;
+											if (destinations != 0) {
+												destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+												if ((destinations & bitboards [8 - 6 * turn]) != 0) {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 | 2 << 7 | 32 | 1024 * turn);
+												} else {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 | 2 << 7 | 64 | 1024 * turn);
+												}
+											}
+											// Queen
+										} else if (a - 6 * turn == 4) {
+											destinations = overlap & (sliderMask | captureMask) & (~sidePieces [turn]);
+											while (destinations != 0) {
+												destinationIndex = leastSigLookup [((destinations & (~destinations + 1)) * debruijnleast) >> 58];
+												validMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 112 | 1024 * turn);
+												destinations &= destinations - 1;
+											}
+											destinations = (enemyBishops & (~enemyBishops + 1)) & captureMask;
+											if (destinations != 0) {
+												destinationIndex = leastSigLookup [(destinations * debruijnleast) >> 58];
+												if ((destinations & bitboards [8 - 6 * turn]) != 0) {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 32 | 1024 * turn);
+												} else {
+													captureMoves.Add (lsb << 17 | destinationIndex << 11 | 4 << 7 | 64 | 1024 * turn);
+												}
 											}
 										}
 									}
@@ -3530,6 +3532,7 @@ public class GameController : MonoBehaviour{
 			// CURRENT TRUE PROCESS
 			PV = new uint[4];
 			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false);
+		//	int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false, false);
 
 			while (searchDepth < maxDepth && PV[searchDepth-1] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
@@ -3537,6 +3540,7 @@ public class GameController : MonoBehaviour{
 				oldPV = (uint[])PV.Clone ();
 				PV = new uint[searchDepth * searchDepth];
 				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true);
+//				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true, false);
 			}
 			if (PV [0] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
@@ -3551,8 +3555,8 @@ public class GameController : MonoBehaviour{
 //			checksFound = 0;
 //			Debug.Log("Test:");
 //			stopWatch.Start ();
-//			Debug.Log (TestPerft(bitboardArray,5));
-//			Debug.Log (checksFound);
+//			Debug.Log ("Regular: "+Perft(bitboardArray,4).ToString());
+//			Debug.Log ("Quiet: "+TestPerft(bitboardArray,4, false).ToString());
 //
 //
 //
@@ -3639,33 +3643,37 @@ public class GameController : MonoBehaviour{
 
 	int checksFound = 0;
 
-	private int TestPerft(ulong[] bitboards, int depthLeft){
-
-		if (depthLeft == 0) {
-			bitboards [12] ^= 1;
-			if (CanTakeKing (bitboards)) {
-				checksFound += 1;
-			}
-			return 1;
-		}
-		int perft = 0;
-
-		// Testing Results
-		List<uint> validMoves = TrueLegalMoves(bitboards);
-		ulong gameState = bitboards [12];
-		foreach (uint move in validMoves){
-			MakeMove (bitboards, move);
-			// assumed to be a valid move
-			perft += TestPerft(bitboards,depthLeft-1);
-
-			bitboards [12] = gameState;
-			UnMakeMove (bitboards, move);
-		}
-
-
-		return perft;
-	}
-
+//	private int TestPerft(ulong[] bitboards, int depthLeft, bool extend){
+//
+//		if (depthLeft == 0) {
+//			if (extend) {
+//				depthLeft = 1;
+//			} else {
+//				bitboards [12] ^= 1;
+//				if (CanTakeKing (bitboards)) {
+//					checksFound += 1;
+//				}
+//				return 1;
+//			}
+//		}
+//		int perft = 0;
+//
+//		// Testing Results
+//		List<uint> validMoves = TrueLegalMoves(bitboards);
+//		ulong gameState = bitboards [12];
+//		foreach (uint move in validMoves){
+//			MakeMove (bitboards, move);
+//			// assumed to be a valid move
+//			perft += TestPerft(bitboards,depthLeft-1, (move&0x70)!=0x70);
+//
+//			bitboards [12] = gameState;
+//			UnMakeMove (bitboards, move);
+//		}
+//
+//
+//		return perft;
+//	}
+//
 //	private int Perft(ulong[] bitboards, int depthLeft){
 //
 //		if (depthLeft == 0) {
@@ -3677,19 +3685,17 @@ public class GameController : MonoBehaviour{
 //		}
 //		int perft = 0;
 //
-//		// Reliable results:
-//				List<uint> validMoves = allValidMoves(bitboards);
-//				ulong gameState = bitboards [12];
-//				foreach (uint move in validMoves){
-//					MakeMove (bitboards, move);
-//					if(!CanTakeKing(bitboards)){
-//						// actually a valid move
-//						perft += Perft(bitboards,depthLeft-1);
-//					}
-//					bitboards [12] = gameState;
-//					UnMakeMove (bitboards, move);
-//				}
-//			
+//		// Testing Results
+//		List<uint> validMoves = TrueLegalMoves(bitboards);
+//		ulong gameState = bitboards [12];
+//		foreach (uint move in validMoves){
+//			MakeMove (bitboards, move);
+//			// assumed to be a valid move
+//			perft += Perft(bitboards,depthLeft-1);
+//
+//			bitboards [12] = gameState;
+//			UnMakeMove (bitboards, move);
+//		}
 //
 //
 //		return perft;
@@ -3698,7 +3704,7 @@ public class GameController : MonoBehaviour{
 
 	// THIS ONE ACTUALLY WORKS!!! --- BACKUP PROCESS ---
 
-	// Principle variation
+	// Just Legal Moves
 //	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
 //		bool canMove = false;
 //		int value;
@@ -3706,7 +3712,9 @@ public class GameController : MonoBehaviour{
 //		if (depthLeft == 0 || stopThread) {
 //			return baseValue;
 //		}
-//		List<uint> childNodes = allValidMoves(mainboard);
+//
+//		List<uint> childNodes = TrueLegalMoves(mainboard);
+//
 //		ulong gameState = mainboard [12];
 //
 //		int bestValue = -1000000;
@@ -3715,7 +3723,7 @@ public class GameController : MonoBehaviour{
 //		}
 //
 //		if (isPV) {
-//			
+//
 //			uint move = oldPV [searchDepth - depthLeft];
 //			if (childNodes.Contains (move)) {
 //				childNodes.Remove (move);
@@ -3750,34 +3758,28 @@ public class GameController : MonoBehaviour{
 //
 //		foreach (uint childMove in childNodes) {
 //			MakeMove (mainboard, childMove);
-//			if (!CanTakeKing (mainboard)) {
-//				canMove = true;
-//				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
-//					value = 0;
-//				} else {
-//					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
-//				}
-//				mainboard [12] = gameState;
-//				UnMakeMove (mainboard, childMove);
-//
-//				if (value > bestValue) {
-//					bestValue = value;
-//					// set here if error
-//				}
-//				if (value > alpha && !stopThread) {
-//					alpha = value;
-//					// set PV here
-//					for (int i = 0; i < depthLeft - 1; i++) {
-//						PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
-//					}
-//					PV [searchDepth * (searchDepth - depthLeft)] = childMove;
-//				}
-//				if (alpha >= beta) {
-//					break;
-//				}
+//			canMove = true;
+//			if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
+//				value = 0;
 //			} else {
-//				mainboard [12] = gameState;
-//				UnMakeMove (mainboard, childMove);
+//				value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
+//			}
+//			mainboard [12] = gameState;
+//			UnMakeMove (mainboard, childMove);
+//
+//			if (value > bestValue) {
+//				bestValue = value;
+//			}
+//			if (value > alpha && !stopThread) {
+//				alpha = value;
+//				// set PV here
+//				for (int i = 0; i < depthLeft - 1; i++) {
+//					PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
+//				}
+//				PV [searchDepth * (searchDepth - depthLeft)] = childMove;
+//			}
+//			if (alpha >= beta) {
+//				break;
 //			}
 //		}
 //		if (!canMove) {
@@ -3793,13 +3795,14 @@ public class GameController : MonoBehaviour{
 //		return bestValue;
 //	}
 
-	// Just Legal Moves
+	// Quiet search
 	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
 		bool canMove = false;
 		int value;
 
+
 		if (depthLeft == 0 || stopThread) {
-			return baseValue;
+				return baseValue;
 		}
 
 		List<uint> childNodes = TrueLegalMoves(mainboard);
