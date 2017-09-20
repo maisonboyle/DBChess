@@ -1596,7 +1596,7 @@ public class GameController : MonoBehaviour{
 	private bool gameDone = false;
 	// experimental to try to make better opening
 	private int numberOfMoves = 0;
-	private int maxDepth;
+	private int maxDepth, extensionDepth;
 	List<uint> bestMoves = new List<uint>();
 
 	private string[] across = new string[] {"a","b","c","d","e","f","g","h"};
@@ -3531,20 +3531,22 @@ public class GameController : MonoBehaviour{
 
 			// CURRENT TRUE PROCESS
 			PV = new uint[4];
-			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false);
-		//	int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false, false);
+		//	int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false);
+			int value = PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), false, false);
 
 			while (searchDepth < maxDepth && PV[searchDepth-1] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
 				searchDepth += 2;
 				oldPV = (uint[])PV.Clone ();
 				PV = new uint[searchDepth * searchDepth];
-				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true);
-//				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true, false);
+//				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true);
+				PVS(bitboardArray, searchDepth, -10000000, 10000000,turn, FullEvaluate(bitboardArray)*(1-2*turn), true, false);
 			}
 			if (PV [0] != 0 && !stopThread) {
 				bestMoves = new List<uint> { PV [0] };
 			}
+
+
 //			NegaMax (bitboardArray, maxDepth, -10000000, 10000000,turn, pieceVals.FullEvaluate(bitboardArray)*(1-2*turn));
 
 //			Debug.Log (bestMoves [0]);
@@ -3705,11 +3707,12 @@ public class GameController : MonoBehaviour{
 	// THIS ONE ACTUALLY WORKS!!! --- BACKUP PROCESS ---
 
 	// Just Legal Moves
-//	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
+//	private int OLDPVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
 //		bool canMove = false;
 //		int value;
 //
 //		if (depthLeft == 0 || stopThread) {
+//			testNodes += 1;
 //			return baseValue;
 //		}
 //
@@ -3732,7 +3735,7 @@ public class GameController : MonoBehaviour{
 //				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 //					value = 0;
 //				} else {
-//					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (move), true);
+//					value = -OLDPVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (move), true);
 //				}
 //
 //				mainboard [12] = gameState;
@@ -3762,7 +3765,7 @@ public class GameController : MonoBehaviour{
 //			if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 //				value = 0;
 //			} else {
-//				value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
+//				value = -OLDPVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
 //			}
 //			mainboard [12] = gameState;
 //			UnMakeMove (mainboard, childMove);
@@ -3796,13 +3799,16 @@ public class GameController : MonoBehaviour{
 //	}
 
 	// Quiet search
-	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV){
+	private int PVS(ulong[] mainboard, int depthLeft, int alpha, int beta, int turn, int baseValue, bool isPV, bool extend){
 		bool canMove = false;
 		int value;
 
 
-		if (depthLeft == 0 || stopThread) {
+		if (depthLeft < 1 || stopThread) {
+			// depthLeft < 1 - max extension
+			if (!extend || depthLeft < extensionDepth || stopThread) {
 				return baseValue;
+			}
 		}
 
 		List<uint> childNodes = TrueLegalMoves(mainboard);
@@ -3814,7 +3820,7 @@ public class GameController : MonoBehaviour{
 			bestValue = -1000005;
 		}
 
-		if (isPV) {
+		if (isPV && depthLeft > 0) {
 
 			uint move = oldPV [searchDepth - depthLeft];
 			if (childNodes.Contains (move)) {
@@ -3824,7 +3830,7 @@ public class GameController : MonoBehaviour{
 				if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 					value = 0;
 				} else {
-					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (move), true);
+					value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (move), true, (move&0x70)==0x70);
 				}
 
 				mainboard [12] = gameState;
@@ -3854,7 +3860,7 @@ public class GameController : MonoBehaviour{
 			if (cantRepeat.Contains (mainboard [13]) || mainboard [12] >= 0x64000) {
 				value = 0;
 			} else {
-				value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false);
+				value = -PVS (mainboard, depthLeft - 1, -beta, -alpha, 1 - turn, -baseValue - AdjustScore (childMove), false, (childMove&0x70)==0x70);
 			}
 			mainboard [12] = gameState;
 			UnMakeMove (mainboard, childMove);
@@ -3865,10 +3871,12 @@ public class GameController : MonoBehaviour{
 			if (value > alpha && !stopThread) {
 				alpha = value;
 				// set PV here
+				if (depthLeft >0){
 				for (int i = 0; i < depthLeft - 1; i++) {
 					PV [searchDepth * (searchDepth - depthLeft) + 1 + i] = PV [searchDepth * (searchDepth - depthLeft + 1) + i];
 				}
 				PV [searchDepth * (searchDepth - depthLeft)] = childMove;
+				}
 			}
 			if (alpha >= beta) {
 				break;
@@ -4442,6 +4450,7 @@ public class GameController : MonoBehaviour{
 
 		maxDepth = PlayerPrefs.GetInt ("Depth");
 		maxTime = PlayerPrefs.GetInt ("Time");
+		extensionDepth = 1 - PlayerPrefs.GetInt ("Extensions");
 		blackTurn.SetActive (false);
 		whiteTurn.SetActive (true);
 		players = new int[] { 0, 0 };

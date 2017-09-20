@@ -11,9 +11,11 @@ public class NewMenuController : MonoBehaviour {
 	public Button WhiteCPU;
 	public Button BlackCPU;
 	public Slider Depth;
+	public Slider Extensions;
 	public Slider Time;
 
 	public Text DepthText;
+	public Text ExtensionText;
 	public Text TimeText;
 
 	private string white = "Player";
@@ -26,7 +28,9 @@ public class NewMenuController : MonoBehaviour {
 
 		Depth.value = (PlayerPrefs.GetInt("Depth")/2)-1;
 		Time.value = (System.Array.IndexOf (new int[] { 1, 2, 3, 4, 5, 10, 15, 20,30 }, PlayerPrefs.GetInt ("Time")));
-		DepthText.text = "CPU Depth: " + ((Depth.value + 1) * 2).ToString ();
+		Extensions.value = PlayerPrefs.GetInt("Extensions");
+		DepthText.text = "CPU Depth: " + ((Depth.value + 1) * 2).ToString () + " ply";
+		ExtensionText.text = "Extensions: " + (Extensions.value).ToString ()+ " ply";
 		TimeText.text = "CPU Time: " + (new int[] { 1, 2, 3, 4, 5, 10, 15,20, 30 }[(int)Time.value]).ToString () + "s";
 
 		if (white != "Player") {
@@ -45,13 +49,17 @@ public class NewMenuController : MonoBehaviour {
 		}
 		if (white != "Player" || black != "Player") {
 			Depth.gameObject.SetActive (true);
+			Extensions.gameObject.SetActive (true);
 			Time.gameObject.SetActive (true); 
-			DepthText.transform.parent.gameObject.SetActive (true); 
-			TimeText.transform.parent.gameObject.SetActive (true); 
+			DepthText.gameObject.SetActive (true); 
+			ExtensionText.gameObject.SetActive (true); 
+			TimeText.gameObject.SetActive (true); 
 		} else {
 			Depth.gameObject.SetActive (false);
+			Extensions.gameObject.SetActive (false);
 			Time.gameObject.SetActive (false); 
 			DepthText.gameObject.SetActive (false); 
+			ExtensionText.gameObject.SetActive (false); 
 			TimeText.gameObject.SetActive (false); 
 		}
 	}
@@ -62,8 +70,10 @@ public class NewMenuController : MonoBehaviour {
 		white = "Computer";
 		Depth.gameObject.SetActive (true);
 		Time.gameObject.SetActive (true);
+		Extensions.gameObject.SetActive (true);
 		DepthText.gameObject.SetActive (true); 
 		TimeText.gameObject.SetActive (true); 
+		ExtensionText.gameObject.SetActive (true); 
 	}
 
 	public void BlackHuman(){
@@ -72,8 +82,10 @@ public class NewMenuController : MonoBehaviour {
 		black = "Computer";
 		Depth.gameObject.SetActive (true);
 		Time.gameObject.SetActive (true);
+		Extensions.gameObject.SetActive (true);
 		DepthText.gameObject.SetActive (true); 
 		TimeText.gameObject.SetActive (true); 
+		ExtensionText.gameObject.SetActive (true); 
 	}
 
 	public void WhiteComp(){
@@ -83,9 +95,11 @@ public class NewMenuController : MonoBehaviour {
 		if (black == "Player") {
 			
 			Depth.gameObject.SetActive (false);
-			Time.gameObject.SetActive (false);
+			Extensions.gameObject.SetActive (false);
+			Time.gameObject.SetActive (false); 
 			DepthText.gameObject.SetActive (false); 
-			TimeText.gameObject.SetActive (false);  
+			ExtensionText.gameObject.SetActive (false); 
+			TimeText.gameObject.SetActive (false); 
 		}
 	}
 
@@ -96,14 +110,20 @@ public class NewMenuController : MonoBehaviour {
 		if (white == "Player") {
 
 			Depth.gameObject.SetActive (false);
-			Time.gameObject.SetActive (false);
-			DepthText.gameObject.SetActive (false);  
-			TimeText.gameObject.SetActive (false);  
+			Extensions.gameObject.SetActive (false);
+			Time.gameObject.SetActive (false); 
+			DepthText.gameObject.SetActive (false); 
+			ExtensionText.gameObject.SetActive (false); 
+			TimeText.gameObject.SetActive (false); 
 		}
 	}
 		
 	public void ChangeDepth(){
-		DepthText.text = "CPU Depth: " + ((Depth.value + 1) * 2).ToString ();
+		DepthText.text = "CPU Depth: " + ((Depth.value + 1) * 2).ToString ()+ " ply";
+	}
+
+	public void ChangeExtension(){
+		ExtensionText.text = "Extensions: " + (Extensions.value).ToString ()+ " ply";
 	}
 
 
@@ -117,6 +137,7 @@ public class NewMenuController : MonoBehaviour {
 		PlayerPrefs.SetString("White", white);
 		PlayerPrefs.SetString("Black", black);
 		PlayerPrefs.SetInt ("Depth", new int[] { 2, 4, 6, 8 } [(int)Depth.value]);
+		PlayerPrefs.SetInt ("Extensions", (int)Extensions.value);
 		PlayerPrefs.SetInt ("Time", new int[] { 1, 2, 3, 4,5,10,15,20,30 } [(int)Time.value]);
 		PlayerPrefs.SetInt ("WhiteTime", 0);
 		PlayerPrefs.SetInt ("BlackTime", 0);
