@@ -52,7 +52,6 @@
   </ItemGroup>
   <ItemGroup>
      <Compile Include="Assets\Scripts\GameController.cs" />
-     <Compile Include="Assets\Scripts\MenuController.cs" />
      <Compile Include="Assets\Scripts\NewMenuController.cs" />
      <None Include="Assets\resources\rookPremasks.txt" />
      <None Include="Assets\resources\knightMoves.txt" />

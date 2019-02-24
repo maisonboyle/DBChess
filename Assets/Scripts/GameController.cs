@@ -1096,6 +1096,8 @@ public class GameController : MonoBehaviour {
 	}
 
 	public void GameOver(){
+		// statics preserved, reset so reloaded on start
+		openingLines = null;
 		SceneManager.LoadScene("NewMenu");
 	}
 
@@ -1211,10 +1213,8 @@ public class GameController : MonoBehaviour {
 	private void UpdateOpenings (uint move){
 		List <uint[]> newOpenings = new List<uint[]> ();
 		for (int i = 0; i < openingLines.Count; i++) {
-			if (openingLines[i].Length > numberOfMoves) {
-				if (openingLines[i][numberOfMoves-1] == move>>11){
-					newOpenings.Add (openingLines [i]);
-				}
+			if (openingLines[i].Length > numberOfMoves && openingLines[i][numberOfMoves-1] == move>>11){
+				newOpenings.Add (openingLines [i]);
 			}
 		}
 		if (newOpenings.Count == 0) {
@@ -1256,8 +1256,8 @@ public class GameController : MonoBehaviour {
 		bestMoves = new List<uint> ();
 		uint move;
 		int turn = (int)bitboardArray[12]&1;
-		// select from opening lines
-		if (inOpening){
+		// select from opening lines unless both players are CPU
+		if (inOpening && players[1-turn] != 1){
 			int bestDepth = 0;
 			for (int i = 0; i < openingLines.Count; i++) {
 				if (openingLines [i].Length-numberOfMoves > bestDepth) {
@@ -1572,7 +1572,7 @@ public class GameController : MonoBehaviour {
 //				destinations = 0;
 				lsbIndex = leastSigLookup [((rookBitBoard & (~rookBitBoard+1)) * debruijnleast) >> 58];
 
-				// ITS MAGIC!
+				// magic move lookup
 				destinations = magicRookAttacks[lsbIndex][((rookPremasks [lsbIndex] & occupied)*rookMagics[lsbIndex])>>rookShifts[lsbIndex]];
 
 
@@ -1953,7 +1953,7 @@ public class GameController : MonoBehaviour {
 			twoSelection.transform.position = new Vector3 (selectionX, selectionY, 0.02f);
 		}
 	}
-	// a previous version had clocks for either side
+	// a previous version had clocks for either side, kept for if wanted in future
 	void DecreaseTime(){
 		if ((bitboardArray[12]&1) == 0) {
 			if (whiteTime > 0) {
