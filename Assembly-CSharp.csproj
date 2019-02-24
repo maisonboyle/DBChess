@@ -56,10 +56,12 @@
      <None Include="Assets\resources\rookPremasks.txt" />
      <None Include="Assets\resources\knightMoves.txt" />
      <None Include="Assets\resources\magicRookAttacks.txt" />
+     <None Include="Assets\resources\evaluationTables.txt" />
      <None Include="Assets\resources\openingLines.txt" />
      <None Include="Assets\resources\magicBishopAttacks.txt" />
      <None Include="Assets\resources\rookMagic.txt" />
      <None Include="Assets\resources\kingMoves.txt" />
+     <None Include="Assets\resources\endgameTables.txt" />
      <None Include="Assets\resources\bishopPremasks.txt" />
      <None Include="Assets\resources\bishopMagic.txt" />
  <Reference Include="UnityEngine.UI">

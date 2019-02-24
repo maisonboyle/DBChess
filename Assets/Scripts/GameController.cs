@@ -25,8 +25,6 @@ public class GameController : MonoBehaviour {
 	public GameObject gameOverButton;
 	public GameObject threePieces;
 	public GameObject twoPieces;
-	public Text whiteTimeText;
-	public Text blackTimeText;
 	public Text moveLogText;
 	public GameObject whiteTurn;
 	public GameObject blackTurn;
@@ -37,140 +35,27 @@ public class GameController : MonoBehaviour {
 	private static int[] rookShifts = new int[] {52, 53, 53, 53, 53, 53, 53, 52, 53, 54, 54, 54, 54, 54, 54, 53, 53, 54, 54, 54, 54, 54, 54, 53, 53, 54, 54, 54, 54, 54, 54, 53,
 		53, 54, 54, 54, 54, 54, 54, 53, 53, 54, 54, 54, 54, 54, 54, 53, 53, 54, 54, 54, 54, 54, 54, 53, 52, 53, 53, 53, 53, 53, 53, 52
 	};
-
 	private static int[] bishopShifts = new int[] {58, 59, 59, 59, 59, 59, 59, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 57, 57, 57, 57, 59, 59, 59, 59, 57, 55, 55, 57, 59, 59, 59, 59, 57, 55,
 		55, 57, 59, 59, 59, 59, 57, 57, 57, 57, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 58, 59, 59, 59, 59, 59, 59, 58
 	};
 
 	private static ulong[] rookPremasks = new ulong[64];
-
 	private static ulong[] bishopPremasks = new ulong[64];
 
 	// provides quick lookup for positions under attack given position and occupancy of board
 	private static ulong[][] magicRookAttacks = new ulong[64][];
-
 	private static ulong[][] magicBishopAttacks = new ulong[64][];
 
 	private static List<uint[]> openingLines = null; 
 
 	private static ulong[] knightMoves = new ulong[64];
-	
 	private static ulong[] kingMoves = new ulong[64];
 
 	// board evaluation scores
 	static int[] baseValues = {100, 320, 330, 500, 900, 20000, 0, 0};
-	static int[][] pieceSquareTable = new int[][]{
-		// wp
-		new int[]
-		{0, 0, 0, 0, 0, 0, 0, 0,
-			0, 10, 10, -20, -25, 10, 10, 0,
-			5,-5, -10, -5, -5,-10, -5, 5,
-			5, 0, 0, 20, 20, 0, 0, 0, 
-			5, 5, 10, 25, 25, 10, 5, 5, 10, 10, 20, 30, 30, 20, 10, 10,
-			50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 0, 0, 0, 0, 0, 0} , 
-
-		// wn
-		new int []
-		{-50, -35, -30, -30, -30, -30, -35, -50, -40, -20, 0, 5, 5,
-			0, -20, -40, -30, 5, 5, 15, 15, 5, 5, -30, -30, 0, 15, 20,
-			20, 15, 0, -30, -30, 5, 15, 20, 20, 15, 5, -30, -30, 0, 10,
-			15, 15, 10, 0, -30, -40, -20, 0, 0, 0, 0, -20, -40, -50, -40,
-			-30, -30, -30, -30, -40, -50},
-
-		// wb
-		new int []
-		{-20, -10, -10, -10, -10, -10, -10, -20, -10, 5, 0, 0, 0, 0, 5, -10, 
-			-10, 10, 10, 10, 10, 10, 10, -10, -10, 0, 10, 10, 10, 10, 0, -10,
-			-10, 5, 5, 10, 10, 5, 5, -10, -10, 0, 5, 10, 10, 5, 0, -10, -10,
-			0, 0, 0, 0, 0, 0, -10, -20, -10, -10, -10, -10, -10, -10, -20},
-
-		// wr
-		new int []
-		{0, 0, 0, 5, 5, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0,
-			0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5,
-			-5, 0, 0, 0, 0, 0, 0, -5, 5, 10, 10, 10, 10, 10, 10, 5, 0, 0,
-			0, 0, 0, 0, 0, 0},
-
-		// wq
-		new int []
-		{-20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 5, 0, 0, 0, 0, -10,
-			-10, 5, 5, 5, 5, 5, 0, -10, 0, 0, 5, 5, 5, 5, 0, -5, -5, 0, 5,
-			5, 5, 5, 0, -5, -10, 0, 5, 5, 5, 5, 0, -10, -10, 0, 0, 0, 0, 0,
-			0, -10, -20, -10, -10, -5, -5, -10, -10, -20},
-
-		// wk
-		new int []
-		{20, 30, 10, 0, 0, 10, 30, 20, 20, 20, 0, 0, 0, 0, 20, 20, -10, -20, -20, 
-			-20, -20, -20, -20, -10, -20, -30, -30, -40, -40, -30, -30, -20, -30,
-			-40, -40, -50, -50, -40, -40, -30, 
-			-30, -40, -40, -50, -50, -40, -40,-30,
-			-30, -40, -40, -50, -50, -40, -40, -30, 
-			-30, -40, -40, -50, -50, -40, -40, -30},
-
-		// black
-
-		// bp
-		new int []
-		{0, 0, 0, 0, 0, 0, 0, 0, 50, 50, 50, 50, 50, 50, 50, 50, 10, 10, 20, 30, 30,
-		20, 10, 10, 5, 5, 10, 25, 25, 10, 5, 5, 5, 0, 0, 20, 20, 0, 0, 0, 5, -5, -10,
-		-5, -5, -10, -5, 5, 0, 10, 10, -20, -25, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-
-		// bn
-		new int []
-		{-50, -40, -30, -30, -30, -30, -40, -50, -40, -20, 0, 0, 0, 0, -20, -40, -30,
-		0, 10, 15, 15, 10, 0, -30, -30, 5, 15, 20, 20, 15, 5, -30, -30, 0, 15, 20, 20,
-		15, 0, -30, -30, 5, 5, 15, 15, 5, 5, -30, -40, -20, 0, 5, 5, 0, -20, -40, -50, -35, -30, -30, -30, -30, -35, -50},
-
-		// bb
-		new int[]
-		{-20, -10, -10, -10, -10, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5,
-		10, 10, 5, 0, -10, -10, 5, 5, 10, 10, 5, 5, -10, -10, 0, 10, 10, 10, 10, 0, -10,
-		-10, 10, 10, 10, 10, 10, 10, -10, -10, 5, 0, 0, 0, 0, 5, -10, -20, -10, -10, -10, -10, -10, -10, -20},
-
-		// br
-		new int[]
-		{0, 0, 0, 0, 0, 0, 0, 0, 5, 10, 10, 10, 10, 10, 10, 5, -5, 0, 0, 0, 0, 0, 0, -5,
-		-5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5,
-		0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 5, 5, 0, 0, 0},
-
-		// bq
-		new int[]
-		{-20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 5, 5,
-		5, 0, -10, -5, 0, 5, 5, 5, 5, 0, -5, 0, 0, 5, 5, 5, 5, 0, -5, -10, 5, 5, 5, 5, 5, 0,
-		-10, -10, 0, 5, 0, 0, 0, 0, -10, -20, -10, -10, -5, -5, -10, -10, -20},
-
-		// bk
-		new int[]
-		{-30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30,
-		-40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -20, -30, 
-		-30, -40, -40, -30, -30, -20, -10, -20, -20, -20, -20, -20, -20, -10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20}
-	};
-
+	static int[][] pieceSquareTable = null;
 	// modified scores towards endgame
-	private static int[][] endPieceSquares = new int[][] {
-		// white pawns, white king, black pawns, black king
-		new int[]
-		{0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0, 0, 5, 5, 5, 10, 10, 10, 10, 10, 10, 10,
-			10, 20, 20, 20, 20, 20, 20, 20, 20, 30, 30, 30, 30, 30, 30, 30, 30, 45, 45,
-			45, 50, 50, 45, 45, 45, 65, 65, 65, 70, 70, 65, 65, 65, 80, 80, 80, 80, 80, 80, 80, 80} ,
-
-		new int[]
-		{-50, -30, -30, -30, -30, -30, -30, -50, -30, -30, 0, 0, 0, 0, -30, -30, -30, -10, 20, 
-			30, 30, 20, -10, -30, -30, -10, 30, 35, 35, 30, -10, -30, -30, -10, 30, 35, 35, 30,
-			-10, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -20, -10, 0, 0, -10, -20, -30,
-			-50, -40, -30, -20, -20, -30, -40, -50},
-
-		new int[]
-		{80, 80, 80, 80, 80, 80, 80, 80, 65, 65, 65, 70, 70, 65, 65, 65, 45, 45, 45, 50, 50, 45,
-			45, 45, 30, 30, 30, 30, 30, 30, 30, 30, 20, 20, 20, 20, 20, 20, 20, 20, 10, 10, 10,
-			10, 10, 10, 10, 10, 5, 5, 5, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0},
-
-		new int[]
-		{-50, -40, -30, -20, -20, -30, -40, -50, -30, -20, -10, 0, 0, -10, -20, -30, -30, -10, 20, 
-			30, 30, 20, -10, -30, -30, -10, 30, 35, 35, 30, -10, -30, -30, -10, 30, 35, 35, 30, -10, 
-			-30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -30, 0, 0, 0, 0, -30, -30, -50, -30, -30, 
-			-30, -30, -30, -30, -50}
-	};
+	private static int[][] endPieceSquares = null;
 
 	private static void EnterEndGame(){
 		pieceSquareTable [0] = endPieceSquares [0];
@@ -182,7 +67,6 @@ public class GameController : MonoBehaviour {
 	private static int FullEvaluate(ulong[] bitboards){
 		int value = 0;
 		uint lsbIndex;
-
 		// white pieces
 		for (int a = 0; a < 6; a++) {
 			ulong pieceBoard = bitboards [a];
@@ -203,8 +87,6 @@ public class GameController : MonoBehaviour {
 		}
 		return value;
 	}
-
-
 
 	private static int AdjustScore(uint move){
 		int value = 0;
@@ -240,7 +122,6 @@ public class GameController : MonoBehaviour {
 		return value;
 	}
 
-
 	// initial game conditions
 	// { (white) pawn, knight, bishop, rook, queen, king, (black) pawn, knight ...} Gamestate added on as 12th item (0x1e), hashvalue as 13th item
 
@@ -250,7 +131,7 @@ public class GameController : MonoBehaviour {
 	private static ulong[][] hashValues = new ulong[12][];
 	private List<ulong> visitedHashes = new List<ulong> ();
 	private List<ulong> cantRepeat = new List<ulong> ();
-
+	// tabulates recent positions and scores for quick value lookup of repeated positions
 	private static uint[] TTHashes = new uint[262144];
 	private static int[] TTValues = new int[262144];
 	private static int[] TTDepths = new int[262144];
@@ -259,6 +140,7 @@ public class GameController : MonoBehaviour {
 	// human (0) or comp (1) for white 1st and black 2nd
 	public int[] players;
 
+	// click selection highlighted on board
 	private int selectionX;
 	private int selectionY;
 	private int[] startTile = new int[] {-1,-1};
@@ -270,15 +152,13 @@ public class GameController : MonoBehaviour {
 	private bool computerMove = false;
 	private bool goToComputer = false;
 	private bool threeD = true;
-	private int whiteTime;
-	private int blackTime;
 	private bool gameDone = false;
 	
-	// varies opening selection
 	private int numberOfMoves = 0;
 	private int maxDepth, extensionDepth;
 	List<uint> bestMoves = new List<uint>();
 
+	// setup to display moves in log on screen
 	private string[] across = new string[] {"a","b","c","d","e","f","g","h"};
 	private string[] up = new string[] {"1","2","3","4","5","6","7","8"};
 	private List<string> moveLog = new List<string>();
@@ -1013,10 +893,8 @@ public class GameController : MonoBehaviour {
 				}
 				moveText += "x";
 			}
-
 			moveText += across[toTile % 8];
 			moveText += up[toTile / 8];
-
 			if (pieceIndex == 0 && (toTile > 55 || toTile < 8)) {
 				if (move % 2 == 0) {
 					moveText += "=Q";
@@ -1028,6 +906,7 @@ public class GameController : MonoBehaviour {
 
 		boardClone = (ulong[])bitboardArray.Clone ();
 		boardClone [12] ^= 1;
+		// detect check/mate
 		if (CanTakeKing (boardClone)) {
 			if (InCheckmate (bitboardArray)) {
 				moveText = moveText + "#";
@@ -1056,7 +935,6 @@ public class GameController : MonoBehaviour {
 		for (int i = moveLog.Count / 2; i > 0; i--) {
 			moveLogText.text += moveLog [2 * i - 2] + "  " + moveLog [2 * i - 1] + "\n";
 		}
-		
 		// decide if in endgame yet
 		int whiteSum = 0;
 		int blackSum = 0;
@@ -1152,54 +1030,12 @@ public class GameController : MonoBehaviour {
 						ulong[] boardClone = (ulong[])bitboardArray.Clone ();
 						MakeMove (boardClone, move);
 						if (!CanTakeKing (boardClone)) {
-							if (whiteTurn.activeSelf) {
-								whiteTurn.SetActive (false);
-								blackTurn.SetActive (true);
-							} else {
-								whiteTurn.SetActive (true);
-								blackTurn.SetActive (false);
-							}
-							chosen.SetActive (false);
-							twoChosen.SetActive (false);
-
-							// drawing castling
-							if ((startPieceIndex == 5 || startPieceIndex == 11) && (startTile [0] - endTile [0]) * (startTile [0] - endTile [0]) == 4) {
-								if (endTile [0] - startTile [0] == -2) {
-									// left
-									VisualUpdate ((uint)((startTile [1] * 8) << 17) + ((uint)(startTile [1] * 8 + 3) << 11));
-								} else {
-									// right
-									VisualUpdate((uint)((startTile[1]*8+7)<<17) + ((uint)(startTile [1] * 8 + 5) << 11));
-								}
-								// drawing en passant
-							} else if ((startPieceIndex == 0 || startPieceIndex == 6) && startTile [0] != endTile [0] && endPieceIndex == -1) {
-								VisualUpdate ((uint)((endTile [0] + startTile [1] * 8) << 17) + (uint)((endTile [0] + startTile [1] * 8) << 11));
-						
-							}
-							VisualUpdate ((uint)((startTile [0] + startTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
-
-							// drawing promotions
-							if ((startPieceIndex == 0 || startPieceIndex == 6) && endTile [1] % 7 == 0) {
-								VisualUpdate ((uint)((endTile [0] + endTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
-								GeneratePiece (endTile [0], endTile [1], 4 + 6 * gameTurn);
-							}
+							drawTurn(startPieceIndex, startTile, endTile, gameTurn, true);
 							ulong gameState = bitboardArray [12];
 							MakeMove (bitboardArray, move);
 							startTile = new int[] { -1, -1 };
 							UpdateMoveLog (move, gameState);
-							numberOfMoves += 1;
-							UpdateOpenings (move);
-
-							// end of game
-							if (InCheckmate (bitboardArray) || staleMate) {
-								gameDone = true;
-								gameOverButton.SetActive (true);
-								Invoke ("Ending", 4.0f);
-
-							// computer to move
-							} else if (players [1 - gameTurn] == 1) { 
-								computerMove = true; 
-							}
+							endTurn(move, gameTurn);
 							break;
 						}
 					}
@@ -1208,6 +1044,55 @@ public class GameController : MonoBehaviour {
 		}
 	}
 	bool inOpening = true;
+	
+	private void drawTurn(int startPieceIndex, int[] startTile, int[] endTile, int gameTurn, bool queenKnight){
+		if (whiteTurn.activeSelf) {
+			whiteTurn.SetActive (false);
+			blackTurn.SetActive (true);
+		} else {
+			whiteTurn.SetActive (true);
+			blackTurn.SetActive (false);
+		}
+		chosen.SetActive (false);
+		twoChosen.SetActive (false);
+		// drawing castling
+		if ((startPieceIndex == 5 || startPieceIndex == 11) && (startTile [0] - endTile [0]) * (startTile [0] - endTile [0]) == 4) {
+			if (endTile [0] - startTile [0] == -2) {
+				// left
+				VisualUpdate ((uint)((startTile [1] * 8) << 17) + ((uint)(startTile [1] * 8 + 3) << 11));
+			} else {
+				// right
+				VisualUpdate((uint)((startTile[1]*8+7)<<17) + ((uint)(startTile [1] * 8 + 5) << 11));
+			}
+			// drawing en passant
+		} else if ((startPieceIndex == 0 || startPieceIndex == 6) && startTile [0] != endTile [0] && endPieceIndex == -1) {
+			VisualUpdate ((uint)((endTile [0] + startTile [1] * 8) << 17) + (uint)((endTile [0] + startTile [1] * 8) << 11));	
+		}
+		VisualUpdate ((uint)((startTile [0] + startTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
+		// drawing promotions
+		if ((startPieceIndex == 0 || startPieceIndex == 6) && endTile [1] % 7 == 0) {
+			VisualUpdate ((uint)((endTile [0] + endTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
+			if (queenKnight){
+				GeneratePiece (endTile [0], endTile [1], 4 + 6 * gameTurn);
+			} else {
+				GeneratePiece (endTile [0], endTile [1], 1 + 6 * gameTurn);
+			}
+		}
+	}
+	
+	private void endTurn(uint move, int gameTurn){
+		numberOfMoves += 1;
+		UpdateOpenings (move);
+		// end of game
+		if (InCheckmate (bitboardArray) || staleMate) {
+			gameDone = true;
+			gameOverButton.SetActive (true);
+			Invoke ("Ending", 4.0f);
+		// computer to move
+		} else if (players [1-gameTurn] == 1) { 
+			computerMove = true; 
+		}
+	}
 
 	// filter openings which can still be followed
 	private void UpdateOpenings (uint move){
@@ -1313,16 +1198,7 @@ public class GameController : MonoBehaviour {
 			ulong gameState = bitboardArray [12];
 			MakeMove (bitboardArray, move);
 			UpdateMoveLog (move, gameState);
-			// switch sides
-			if (whiteTurn.activeSelf) {
-				whiteTurn.SetActive (false);
-				blackTurn.SetActive (true);
-			} else {
-				whiteTurn.SetActive (true);
-				blackTurn.SetActive (false);
-			}
-			chosen.SetActive (false);
-			twoChosen.SetActive (false);
+			
 
 			int startPieceIndex = (int)(((move >> 7) & 7)+6*((move>>10)&1));
 			int endPieceIndex = (int)((move >> 4) & 7);
@@ -1333,41 +1209,8 @@ public class GameController : MonoBehaviour {
 			int[] endTile = new int[] { (int)(((move >> 11)&0x3f) % 8), (int)(((move >> 11)&0x3f) / 8 )};
 			int gameTurn = 1-(int)(bitboardArray [12] % 2);
 
-			// drawing castling
-			if ((startPieceIndex == 5 || startPieceIndex == 11) && (startTile [0] - endTile [0]) * (startTile [0] - endTile [0]) == 4) {
-				if (endTile [0] - startTile [0] == -2) {
-					// left
-					VisualUpdate ((uint)((startTile [1] * 8) << 17) + ((uint)(startTile [1] * 8 + 3) << 11));
-				} else {
-					// right
-					VisualUpdate((uint)((startTile[1]*8+7)<<17) + ((uint)(startTile [1] * 8 + 5) << 11));
-				}
-				// drawing en passant
-			} else if ((startPieceIndex == 0 || startPieceIndex == 6) && startTile [0] != endTile [0] && endPieceIndex == -1) {
-				VisualUpdate ((uint)((endTile [0] + startTile [1] * 8) << 17) + (uint)((endTile [0] + startTile [1] * 8) << 11));
-
-			}
-			VisualUpdate ((uint)((startTile [0] + startTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
-			// drawing promotions
-			if ((startPieceIndex == 0 || startPieceIndex == 6) && endTile [1] % 7 == 0) {
-				VisualUpdate ((uint)((endTile [0] + endTile [1] * 8) << 17) + (uint)((endTile [0] + endTile [1] * 8) << 11));
-				if (move % 2 == 0) {
-					GeneratePiece (endTile [0], endTile [1], 4 + 6 * gameTurn);
-				} else {
-					GeneratePiece (endTile [0], endTile [1], 1 + 6 * gameTurn);
-				}
-			}
-			numberOfMoves += 1;
-			UpdateOpenings (move);
-
-			if (InCheckmate (bitboardArray) || staleMate) {
-				gameDone = true;
-				gameOverButton.SetActive (true);
-				Invoke ("Ending", 4.0f);
-
-			} else if (players [1-gameTurn] == 1) { 
-				computerMove = true; 
-			}
+			drawTurn(startPieceIndex, startTile, endTile, gameTurn, move % 2 == 0);
+			endTurn(move, gameTurn);
 		}
 	}
 
@@ -1953,35 +1796,15 @@ public class GameController : MonoBehaviour {
 			twoSelection.transform.position = new Vector3 (selectionX, selectionY, 0.02f);
 		}
 	}
-	// a previous version had clocks for either side, kept for if wanted in future
-	void DecreaseTime(){
-		if ((bitboardArray[12]&1) == 0) {
-			if (whiteTime > 0) {
-				whiteTime -= 1;
-				whiteTimeText.text = "White: " + whiteTime / 60 + ":" + new System.String('0', ((whiteTime % 60).ToString ().Length) % 2) + (whiteTime % 60).ToString ();
-				if (whiteTime == 0) {
-					gameDone = true;
-					gameOverButton.SetActive (true);
-					Invoke ("Ending", 4.0f);
-				}
-			}
-		} else if (blackTime > 0) {
-			blackTime -= 1;
-			blackTimeText.text = "Black: " + blackTime / 60 + ":" + new System.String('0', ((blackTime % 60).ToString ().Length) % 2) + (blackTime % 60).ToString ();
-			if (blackTime == 0) {
-				gameDone = true;
-				gameOverButton.SetActive (true);
-				Invoke ("Ending", 4.0f);
-			}
-		}
-	}
+	
 
 	void Start (){
+		// load data such as magic numbers/positions and evaluation tables
+		// fields static so only loaded first time game played, not on repeats
 		string[] sources64 = new string[] {"bishopMagic.txt", "rookMagic.txt", "bishopPremasks.txt",
 									"rookPremasks.txt", "knightMoves.txt", "kingMoves.txt"};
 		ulong[][] arrays64 = new ulong[][] {bishopMagics, rookMagics, bishopPremasks,
 									rookPremasks, knightMoves, kingMoves};
-		// load data
 		string text;
 		for (int i = 0; i < arrays64.Length; i++){
 			if (arrays64[i][0] == 0){
@@ -2002,11 +1825,9 @@ public class GameController : MonoBehaviour {
 				using (StreamReader reader = new StreamReader(path)){
 					for (int j = 0; j < 64; j++){
 						text = reader.ReadLine();
-						// process stuff
 						string[] split = text.Split(' ');
 						ulong[] line = new ulong[split.Length];
 						for (int k = 0; k < line.Length; k++){
-							//Debug.Log(k);
 							line[k] = System.Convert.ToUInt64(split[k],16);
 						}
 						arrays64x[i][j] = line;
@@ -2020,7 +1841,6 @@ public class GameController : MonoBehaviour {
 			using (StreamReader reader = new StreamReader(path)){
 				text = reader.ReadLine();
 				while (text != null) {
-					//Debug.Log(text);
 					string[] split = text.Split(',');
 					uint[] line = new uint[split.Length];
 					for (int j = 0; j < line.Length; j++){
@@ -2028,6 +1848,36 @@ public class GameController : MonoBehaviour {
 					}
 					openingLines.Add(line);
 					text = reader.ReadLine();
+				}
+			}
+		}
+		if (pieceSquareTable == null){
+			pieceSquareTable = new int[12][];
+			string path = "Assets/resources/evaluationTables.txt";
+			using (StreamReader reader = new StreamReader(path)){
+				for (int i = 0; i < 12; i++){
+					text = reader.ReadLine();
+					string[] split = text.Split(',');
+					int[] line = new int[64];
+					for (int j = 0; j<64; j++){
+						line[j] = System.Convert.ToInt32(split[j]);
+					}
+					pieceSquareTable[i] = line;
+				}
+			}
+		}
+		if (endPieceSquares == null){
+			endPieceSquares = new int[4][];
+			string path = "Assets/resources/endgameTables.txt";
+			using (StreamReader reader = new StreamReader(path)){
+				for (int i = 0; i < 4; i++){
+					text = reader.ReadLine();
+					string[] split = text.Split(',');
+					int[] line = new int[64];
+					for (int j = 0; j<64; j++){
+						line[j] = System.Convert.ToInt32(split[j]);
+					}
+					endPieceSquares[i] = line;
 				}
 			}
 		}
@@ -2060,20 +1910,6 @@ public class GameController : MonoBehaviour {
 		blackTurn.SetActive (false);
 		whiteTurn.SetActive (true);
 		players = new int[] { 0, 0 };
-		// a previous version had clocks for either side
-		whiteTime =  PlayerPrefs.GetInt("WhiteTime") * 60;
-		blackTime = PlayerPrefs.GetInt("BlackTime") * 60;
-		InvokeRepeating("DecreaseTime", 1.0f, 1.0f);
-		if (whiteTime == 0) {
-			whiteTimeText.text = "";
-		} else {
-			whiteTimeText.text = "White: " + whiteTime / 60 + ":" + new System.String('0', ((whiteTime % 60).ToString ().Length) % 2) + (whiteTime % 60).ToString ();
-		}
-		if (blackTime == 0) {
-			blackTimeText.text = "";
-		} else {
-			blackTimeText.text = "Black: " + blackTime / 60 + ":" + new System.String('0', ((blackTime % 60).ToString ().Length) % 2) + (blackTime % 60).ToString ();
-		}
 
 		string white = PlayerPrefs.GetString("White");
 		if (white != "Player") {
